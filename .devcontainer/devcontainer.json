@@ -1,0 +1,45 @@
+{
+  "name": "Home Assistant Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "forwardPorts": [
+    8123
+  ],
+  "portsAttributes": {
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "pip3 install --upgrade pip && pip3 install -r requirements-dev.txt",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "redhat.vscode-yaml",
+        "esbenp.prettier-vscode",
+        "keesschollaart.vscode-home-assistant"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.linting.pylintArgs": [
+          "--disable=C,R,W",
+          "--extension-pkg-whitelist=homeassistant"
+        ],
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "files.eol": "\n",
+        "editor.tabSize": 4
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}
