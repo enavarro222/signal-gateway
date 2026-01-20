@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Signal Gateway Configuration",
+        "description": "Configure Signal Gateway integration",
+        "data": {
+          "name": "Name",
+          "signal_cli_rest_api_url": "Signal CLI REST API URL",
+          "phone_number": "Phone Number (Signal sender number)",
+          "websocket_enabled": "Enable WebSocket listener for incoming messages"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Invalid API URL",
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "Signal Gateway is already configured"
+    }
+  },
+  "services": {
+    "send_message": {
+      "name": "Send Message",
+      "description": "Send a message via Signal",
+      "fields": {
+        "target": {
+          "name": "Target",
+          "description": "Phone number or group ID to send to"
+        },
+        "message": {
+          "name": "Message",
+          "description": "Message content"
+        },
+        "attachments": {
+          "name": "Attachments",
+          "description": "Optional list of attachment URLs"
+        }
+      }
+    }
+  }
+}
+

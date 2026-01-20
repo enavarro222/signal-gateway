@@ -1,0 +1,24 @@
+# Development requirements for Signal Gateway
+
+# Code quality
+black>=24.1.0
+pylint>=3.0.0
+mypy>=1.7.0
+flake8>=6.1.0
+isort>=5.13.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# HomeAssistant development
+homeassistant>=2024.1.0
+
+# Documentation
+sphinx>=7.2.0
+sphinx-rtd-theme>=2.0.0
+
+# Dependencies
+websockets>=12.0
+aiohttp>=3.9.0
