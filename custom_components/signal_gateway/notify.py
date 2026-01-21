@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
-from .signal_client import SignalClient
+from .signal import SignalClient
 
 _LOGGER = logging.getLogger(__name__)
 
