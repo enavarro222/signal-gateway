@@ -1,4 +1,4 @@
-"""Signal CLI REST API client using aiohttp."""
+"""HTTP client for Signal-cli-rest-api."""
 
 from __future__ import annotations
 
@@ -10,16 +10,16 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 
-class SignalClient:
-    """Minimal HTTP client for Signal-cli-rest-api.
+class SignalHTTPClient:
+    """HTTP client for Signal-cli-rest-api.
 
     See https://github.com/bbernhard/signal-cli-rest-api
     """
 
     def __init__(self, api_url: str, phone_number: str, session: aiohttp.ClientSession):
-        """Initialize the Signal client."""
+        """Initialize the HTTP client."""
         self.api_url = api_url.rstrip("/")
-        self.number = phone_number
+        self.phone_number = phone_number
         self.session = session
 
     async def send_message(
@@ -43,7 +43,7 @@ class SignalClient:
                 target,
             ],
             "message": message,
-            "number": self.number,
+            "number": self.phone_number,
         }
 
         if attachments:

@@ -18,8 +18,7 @@ from .const import (
     DOMAIN,
     EVENT_SIGNAL_RECEIVED,
 )
-from .signal_client import SignalClient
-from .websocket import SignalWebSocketListener
+from .signal import SignalClient, SignalWebSocketListener
 from .notify import async_unload_notify_service
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
