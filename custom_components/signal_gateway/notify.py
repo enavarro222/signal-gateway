@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional, Union
 
 import voluptuous as vol
 
@@ -103,12 +103,15 @@ class SignalGatewayNotificationService(BaseNotificationService):
         self.hass = hass
         self._client: SignalClient = client
 
+    def send_message(self, message, **kwargs):
+        raise NotImplementedError("Use async_send_message instead")
+
     async def async_send_message(
         self,
-        message: str = None,
-        title: str | None = None,
-        target: str | list = None,
-        attachments: list | None = None,
+        message: Optional[str] = None,
+        title: Optional[str] = None,
+        target: Optional[Union[str, list[Any]]] = None,
+        attachments: Optional[list[Any]] = None,
         **kwargs: Any,
     ) -> None:
         """Send a notification via Signal.
