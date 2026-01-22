@@ -30,8 +30,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Signal Gateway from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    api_url = entry.data.get(CONF_SIGNAL_CLI_REST_API_URL)
-    phone_number = entry.data.get(CONF_PHONE_NUMBER)
+    api_url = str(entry.data.get(CONF_SIGNAL_CLI_REST_API_URL, ""))
+    phone_number = str(entry.data.get(CONF_PHONE_NUMBER, ""))
     websocket_enabled = entry.data.get(CONF_WEBSOCKET_ENABLED, True)
 
     # Create the Signal client

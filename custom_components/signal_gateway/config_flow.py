@@ -1,4 +1,5 @@
 """Config flow for Signal Gateway integration."""
+
 import logging
 from typing import Any
 
@@ -6,7 +7,12 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_NAME
 
-from .const import CONF_PHONE_NUMBER, CONF_SIGNAL_CLI_REST_API_URL, CONF_WEBSOCKET_ENABLED, DOMAIN
+from .const import (
+    CONF_PHONE_NUMBER,
+    CONF_SIGNAL_CLI_REST_API_URL,
+    CONF_WEBSOCKET_ENABLED,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,12 +45,14 @@ class SignalGatewayConfigFlow(ConfigFlow, domain=DOMAIN):
                     data=user_input,
                 )
 
-        data_schema = vol.Schema({
-            vol.Optional(CONF_NAME, default="Signal Gateway"): str,
-            vol.Required(CONF_SIGNAL_CLI_REST_API_URL): str,
-            vol.Required(CONF_PHONE_NUMBER): str,
-            vol.Optional(CONF_WEBSOCKET_ENABLED, default=True): bool,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Optional(CONF_NAME, default="Signal Gateway"): str,
+                vol.Required(CONF_SIGNAL_CLI_REST_API_URL): str,
+                vol.Required(CONF_PHONE_NUMBER): str,
+                vol.Optional(CONF_WEBSOCKET_ENABLED, default=True): bool,
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
