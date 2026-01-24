@@ -60,42 +60,12 @@ class SignalWebSocketListener:
     async def _listen(self) -> None:
         """Listen for messages from the WebSocket."""
         ws_url = f"{self.api_url.replace('http', 'ws')}/v1/receive/{self.phone_number}"
-
         retry_count = 0
 
         while self._running:
             try:
-                async with websockets.connect(
-                    ws_url,
-                    close_timeout=5,
-                ) as websocket:
-                    assert websocket is not None
-                    self.websocket = websocket
-                    retry_count = 0  # Reset retry count on successful connection
-                    _LOGGER.info("Connected to Signal WebSocket")
-
-                    try:
-                        async for message in websocket:
-                            if not self._running:
-                                break
-
-                            try:
-                                data = json.loads(message)
-                                if self._message_handler:
-                                    await self._message_handler(data)
-                            except json.JSONDecodeError as err:
-                                _LOGGER.error(
-                                    "Failed to parse WebSocket message: %s", err
-                                )
-                            except Exception as err:  # pylint: disable=broad-except
-                                _LOGGER.error(
-                                    "Error handling WebSocket message: %s", err
-                                )
-                    except websockets.exceptions.ConnectionClosed:
-                        _LOGGER.info("WebSocket connection closed")
-                    except asyncio.CancelledError:
-                        break
-
+                await self._connect_and_listen(ws_url)
+                retry_count = 0  # Reset retry count on successful connection
             except Exception as err:  # pylint: disable=broad-except
                 if self._running:
                     retry_count += 1
@@ -121,3 +91,32 @@ class SignalWebSocketListener:
                     break
 
         _LOGGER.info("WebSocket listener stopped")
+
+    async def _connect_and_listen(self, ws_url: str) -> None:
+        async with websockets.connect(
+            ws_url,
+            close_timeout=5,
+        ) as websocket:
+            assert websocket is not None
+            self.websocket = websocket
+            _LOGGER.info("Connected to Signal WebSocket")
+            try:
+                async for message in websocket:
+                    if not self._running:
+                        break
+                    await self._handle_message(message)
+            except websockets.exceptions.ConnectionClosed:
+                _LOGGER.info("WebSocket connection closed")
+            except asyncio.CancelledError:  # listening task is cancelled by main code
+                _LOGGER.debug("WebSocket listening task cancelled")
+                pass
+
+    async def _handle_message(self, message: str) -> None:
+        try:
+            data = json.loads(message)
+            if self._message_handler:
+                await self._message_handler(data)
+        except json.JSONDecodeError as err:
+            _LOGGER.error("Failed to parse WebSocket message: %s", err)
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.error("Error handling WebSocket message: %s", err)
