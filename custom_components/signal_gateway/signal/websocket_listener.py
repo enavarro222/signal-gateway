@@ -8,6 +8,7 @@ import logging
 from typing import Any, Callable, Optional
 
 import websockets
+from websockets.client import ClientConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,11 +16,16 @@ _LOGGER = logging.getLogger(__name__)
 class SignalWebSocketListener:
     """Listen for incoming Signal messages via WebSocket."""
 
+    max_retries: int = (
+        10  # Maximum number of connection retry attempts before giving up
+    )
+    retry_delay: int = 5  # Delay (in seconds) between connection retry attempts
+
     def __init__(self, api_url: str, phone_number: str):
         """Initialize the WebSocket listener."""
         self.api_url = api_url.rstrip("/")
         self.phone_number = phone_number
-        self.websocket: Optional[websockets.WebSocketClientProtocol] = None
+        self.websocket: Optional[ClientConnection] = None
         self._task: Optional[asyncio.Task[None]] = None
         self._message_handler: Optional[Callable[[dict[str, Any]], Any]] = None
         self._running = False
@@ -56,8 +62,6 @@ class SignalWebSocketListener:
         ws_url = f"{self.api_url.replace('http', 'ws')}/v1/receive/{self.phone_number}"
 
         retry_count = 0
-        max_retries = 10
-        retry_delay = 5
 
         while self._running:
             try:
@@ -65,6 +69,7 @@ class SignalWebSocketListener:
                     ws_url,
                     close_timeout=5,
                 ) as websocket:
+                    assert websocket is not None
                     self.websocket = websocket
                     retry_count = 0  # Reset retry count on successful connection
                     _LOGGER.info("Connected to Signal WebSocket")
@@ -94,10 +99,10 @@ class SignalWebSocketListener:
             except Exception as err:  # pylint: disable=broad-except
                 if self._running:
                     retry_count += 1
-                    if retry_count > max_retries:
+                    if retry_count > self.max_retries:
                         _LOGGER.error(
                             "Failed to connect to Signal WebSocket after %d retries: %s",
-                            max_retries,
+                            self.max_retries,
                             err,
                         )
                         self._running = False
@@ -107,11 +112,11 @@ class SignalWebSocketListener:
                         "Failed to connect to Signal WebSocket (attempt %d/%d): %s. "
                         "Retrying in %d seconds...",
                         retry_count,
-                        max_retries,
+                        self.max_retries,
                         err,
-                        retry_delay,
+                        self.retry_delay,
                     )
-                    await asyncio.sleep(retry_delay)
+                    await asyncio.sleep(self.retry_delay)
                 else:
                     break
 
