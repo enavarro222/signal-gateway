@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 import aiohttp
 
@@ -128,10 +128,19 @@ class SignalWebSocketListener:
             return False
         return True
 
+    def is_received_msg(self, msg: Dict) -> bool:
+        """Check if the message is a 'receive' type message."""
+        envelope = msg.get("envelope", {})
+        return (
+            envelope.get("dataMessage") is not None
+            and envelope["dataMessage"].get("message") is not None
+        )
+
     async def _handle_message(self, message: str) -> None:
         try:
             data = json.loads(message)
-            if self._message_handler:
+            _LOGGER.debug("Received WebSocket data: %s", data)
+            if self._message_handler and self.is_received_msg(data):
                 await self._message_handler(data)
         except json.JSONDecodeError as err:
             _LOGGER.error("Failed to parse WebSocket message: %s", err)

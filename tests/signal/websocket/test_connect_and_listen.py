@@ -17,7 +17,24 @@ async def test__connect_and_listen_running_becomes_false(
     """
     Teste que la boucle s'arrête si _running devient False pendant la réception.
     """
-    messages = [json.dumps({"data": "msg1"}), json.dumps({"data": "msg2"})]
+    messages = [
+        json.dumps(
+            {
+                "envelope": {
+                    "dataMessage": {"message": "msg1", "timestamp": 1234567890},
+                    "source": "+1234567890",
+                }
+            }
+        ),
+        json.dumps(
+            {
+                "envelope": {
+                    "dataMessage": {"message": "msg2", "timestamp": 1234567891},
+                    "source": "+1234567890",
+                }
+            }
+        ),
+    ]
 
     # configure the websocket mock
     async def websockets_clients_generator(*args, **kwargs):
@@ -53,7 +70,24 @@ async def test__connect_and_listen_cancel_error(mock_websocket_connects, mock_se
     """
     Teste que la boucle s'arrête si _running devient False pendant la réception.
     """
-    messages = [json.dumps({"data": "msg1"}), json.dumps({"data": "msg2"})]
+    messages = [
+        json.dumps(
+            {
+                "envelope": {
+                    "dataMessage": {"message": "msg1", "timestamp": 1234567890},
+                    "source": "+1234567890",
+                }
+            }
+        ),
+        json.dumps(
+            {
+                "envelope": {
+                    "dataMessage": {"message": "msg2", "timestamp": 1234567891},
+                    "source": "+1234567890",
+                }
+            }
+        ),
+    ]
 
     # configure the websocket mock
     async def websockets_clients_generator(*args, **kwargs):

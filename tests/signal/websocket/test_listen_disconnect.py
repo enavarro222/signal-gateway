@@ -17,7 +17,14 @@ async def test_listen_stops_when_running_becomes_false(
     """
     # Prepare a websocket mock that yields two messages
     messages = [
-        json.dumps({"msg": 1}),
+        json.dumps(
+            {
+                "envelope": {
+                    "dataMessage": {"message": "msg1", "timestamp": 1234567890},
+                    "source": "+1234567890",
+                }
+            }
+        ),
     ]
 
     async def websockets_clients_generator(*args, **kwargs):
@@ -48,4 +55,11 @@ async def test_listen_stops_when_running_becomes_false(
 
     await listener._listen()
     # Only one message should be handled
-    handler.assert_awaited_once_with({"msg": 1})
+    handler.assert_awaited_once_with(
+        {
+            "envelope": {
+                "dataMessage": {"message": "msg1", "timestamp": 1234567890},
+                "source": "+1234567890",
+            }
+        }
+    )

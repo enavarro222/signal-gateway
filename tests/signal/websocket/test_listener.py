@@ -19,7 +19,14 @@ async def test__listen_receives_message(mock_websocket_connects, mock_session):
     # configure the websocket mock
     async def websockets_clients_generator(*args, **kwargs):
         async def websocket_messages_generator():
-            yield json.dumps({"data": "test"})
+            yield json.dumps(
+                {
+                    "envelope": {
+                        "dataMessage": {"message": "test", "timestamp": 1234567890},
+                        "source": "+1234567890",
+                    }
+                }
+            )
 
         yield MockWebSocketClient(websocket_messages_generator)
 
@@ -34,7 +41,14 @@ async def test__listen_receives_message(mock_websocket_connects, mock_session):
 
     with pytest.raises(asyncio.TimeoutError):
         await asyncio.wait_for(listener._listen(), timeout=2)
-    handler.assert_awaited_once_with({"data": "test"})
+    handler.assert_awaited_once_with(
+        {
+            "envelope": {
+                "dataMessage": {"message": "test", "timestamp": 1234567890},
+                "source": "+1234567890",
+            }
+        }
+    )
 
 
 @pytest.mark.asyncio
