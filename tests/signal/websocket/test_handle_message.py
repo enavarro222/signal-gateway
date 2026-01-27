@@ -18,9 +18,16 @@ async def test_handle_message_valid(monkeypatch, mock_session):
     )
     handler = AsyncMock()
     listener.set_message_handler(handler)
-    msg = json.dumps({"foo": "bar"})
+    valid_msg = {
+        "envelope": {
+            "dataMessage": {"message": "Hello, World!", "timestamp": 1234567890},
+            "source": "+1234567890",
+            "sourceDevice": 1,
+        }
+    }
+    msg = json.dumps(valid_msg)
     await listener._handle_message(msg)
-    handler.assert_awaited_once_with({"foo": "bar"})
+    handler.assert_awaited_once_with(valid_msg)
 
 
 @pytest.mark.asyncio
@@ -54,5 +61,11 @@ async def test_handle_message_handler_exception(monkeypatch, caplog, mock_sessio
 
     listener.set_message_handler(bad_handler)
     caplog.set_level("ERROR")
-    await listener._handle_message(json.dumps({"foo": "bar"}))
+    valid_msg = {
+        "envelope": {
+            "dataMessage": {"message": "Test message", "timestamp": 1234567890},
+            "source": "+1234567890",
+        }
+    }
+    await listener._handle_message(json.dumps(valid_msg))
     assert "Error handling WebSocket message" in caplog.text
