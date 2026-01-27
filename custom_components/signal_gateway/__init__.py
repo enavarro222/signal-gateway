@@ -18,7 +18,7 @@ from .const import (
     DOMAIN,
     EVENT_SIGNAL_RECEIVED,
 )
-from .signal import SignalClient, SignalWebSocketListener
+from .signal import SignalClient
 from .notify import async_unload_notify_service
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -48,12 +48,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
         "service_name": service_name,
-        "listener": None,
     }
 
     # Set up WebSocket listener if enabled
     if websocket_enabled:
-        listener = SignalWebSocketListener(api_url, phone_number, session)
 
         async def _handle_message(data: dict) -> None:
             """Handle incoming Signal messages."""
@@ -65,9 +63,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.error("Error processing Signal message: %s", err)
 
-        listener.set_message_handler(_handle_message)
-        await listener.connect()
-        hass.data[DOMAIN][entry.entry_id]["listener"] = listener
+        client.set_message_handler(_handle_message)
+        await client.start_listening()
         _LOGGER.info("Signal WebSocket listener started")
 
     # Load the notify platform for this entry
@@ -83,9 +80,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("Unload Signal Gateway entry '%s'", service_name)
 
     # Stop the WebSocket listener
-    listener = data.get("listener")
-    if listener:
-        await listener.disconnect()
+    client = data.get("client")
+    if client:
+        await client.stop_listening()
         _LOGGER.info("Signal WebSocket listener stopped")
 
     # Unload the notification platform
