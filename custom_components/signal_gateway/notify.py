@@ -14,6 +14,7 @@ from homeassistant.components.notify import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_set_service_schema
 
 from .const import DOMAIN
 from .signal import SignalClient
@@ -71,6 +72,47 @@ async def async_setup_entry(
                 vol.Optional("attachments"): [cv.string],
             }
         ),
+    )
+
+    # Set service schema for GUI
+    async_set_service_schema(
+        hass,
+        DOMAIN,
+        service_name,
+        {
+            "name": "Send message",
+            "description": "Send a Signal message to one or more recipients",
+            "fields": {
+                "message": {
+                    "name": "Message",
+                    "description": "The message content to send",
+                    "required": True,
+                    "example": "Hello from Home Assistant!",
+                    "selector": {"text": {"multiline": True}},
+                },
+                "title": {
+                    "name": "Title",
+                    "description": "Optional title that will be prepended to the message",
+                    "required": False,
+                    "example": "Alert",
+                    "selector": {"text": {}},
+                },
+                "target": {
+                    "name": "Target",
+                    "description": "Phone number (with country code) or group ID. Can be a single value or a list",
+                    "required": True,
+                    "example": "+1234567890",
+                    "selector": {"text": {}},
+                },
+                "attachments": {
+                    "name": "Attachments",
+                    "description": "List of file paths or URLs to attach to the message",
+                    "required": False,
+                    "example": ["/config/www/camera_snapshot.jpg"],
+                    "selector": {"object": {}},
+                },
+            },
+        },
     )
     return True
 
