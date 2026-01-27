@@ -45,6 +45,11 @@ async def async_setup_entry(
     # Register the Home Assistant service
     async def handle_send_message(call):
         """Handle send message service call."""
+        _LOGGER.debug(
+            "Sending message to target=%s, message starts with: %s",
+            call.data.get("target"),
+            call.data.get("message", "")[:50],
+        )
         await service.async_send_message(
             message=call.data.get("message"),
             title=call.data.get("title"),
