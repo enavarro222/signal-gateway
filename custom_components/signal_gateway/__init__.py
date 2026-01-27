@@ -53,7 +53,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up WebSocket listener if enabled
     if websocket_enabled:
-        listener = SignalWebSocketListener(api_url, phone_number)
+        listener = SignalWebSocketListener(api_url, phone_number, session)
 
         async def _handle_message(data: dict) -> None:
             """Handle incoming Signal messages."""

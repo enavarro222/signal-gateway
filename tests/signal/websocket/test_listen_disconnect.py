@@ -10,7 +10,7 @@ from .conftest import MockWebSocketClient
 
 @pytest.mark.asyncio
 async def test_listen_stops_when_running_becomes_false(
-    mock_websocket_connects, monkeypatch
+    mock_websocket_connects, monkeypatch, mock_session
 ):
     """
     Test that _listen exits cleanly when _running is set to False (e.g., by disconnect).
@@ -30,7 +30,7 @@ async def test_listen_stops_when_running_becomes_false(
     mock_websocket_connects.set_clients_generator(websockets_clients_generator)
 
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="123"
+        api_url="http://localhost:8080", phone_number="123", session=mock_session
     )
     handler = AsyncMock()
     listener.set_message_handler(handler)

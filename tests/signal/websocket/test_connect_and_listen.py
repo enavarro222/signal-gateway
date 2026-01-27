@@ -11,7 +11,9 @@ from .conftest import MockWebSocketClient
 
 
 @pytest.mark.asyncio
-async def test__connect_and_listen_running_becomes_false(mock_websocket_connects):
+async def test__connect_and_listen_running_becomes_false(
+    mock_websocket_connects, mock_session
+):
     """
     Teste que la boucle s'arrête si _running devient False pendant la réception.
     """
@@ -28,7 +30,7 @@ async def test__connect_and_listen_running_becomes_false(mock_websocket_connects
     mock_websocket_connects.set_clients_generator(websockets_clients_generator)
 
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="123"
+        api_url="http://localhost:8080", phone_number="123", session=mock_session
     )
     listener._running = True
 
@@ -47,7 +49,7 @@ async def test__connect_and_listen_running_becomes_false(mock_websocket_connects
 
 
 @pytest.mark.asyncio
-async def test__connect_and_listen_cancel_error(mock_websocket_connects):
+async def test__connect_and_listen_cancel_error(mock_websocket_connects, mock_session):
     """
     Teste que la boucle s'arrête si _running devient False pendant la réception.
     """
@@ -65,7 +67,7 @@ async def test__connect_and_listen_cancel_error(mock_websocket_connects):
     mock_websocket_connects.set_clients_generator(websockets_clients_generator)
 
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="123"
+        api_url="http://localhost:8080", phone_number="123", session=mock_session
     )
     listener._running = True
 

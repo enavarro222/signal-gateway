@@ -11,7 +11,7 @@ from .conftest import MockWebSocketClient
 
 
 @pytest.mark.asyncio
-async def test__listen_receives_message(mock_websocket_connects):
+async def test__listen_receives_message(mock_websocket_connects, mock_session):
     """
     Test that _listen receives a message and calls the handler.
     """
@@ -26,7 +26,7 @@ async def test__listen_receives_message(mock_websocket_connects):
     mock_websocket_connects.set_clients_generator(websockets_clients_generator)
 
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="123"
+        api_url="http://localhost:8080", phone_number="123", session=mock_session
     )
     handler = AsyncMock()
     listener.set_message_handler(handler)
@@ -38,7 +38,7 @@ async def test__listen_receives_message(mock_websocket_connects):
 
 
 @pytest.mark.asyncio
-async def test__listen_connection_error(mock_websocket_connects):
+async def test__listen_connection_error(mock_websocket_connects, mock_session):
     """
     Test that _listen stops running after repeated connection errors.
     """
@@ -50,7 +50,7 @@ async def test__listen_connection_error(mock_websocket_connects):
     mock_websocket_connects.set_clients_generator(websockets_clients_generator)
 
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="123"
+        api_url="http://localhost:8080", phone_number="123", session=mock_session
     )
     listener.max_retries = 3
     listener.retry_delay = 0.1

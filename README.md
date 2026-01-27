@@ -7,8 +7,8 @@ Signal Gateway is a custom Home Assistant integration that provides an alternati
 ✨ **Notification Service** - Send Signal messages from Home Assistant (asynchronous REST API)
 📱 **Message Reception** - WebSocket listener to capture incoming messages
 🔄 **Home Assistant Events** - Automatic relay to `signal_received` events
-⚡ **Asynchronous** - Uses `aiohttp` and `websockets` for optimal performance
-🚀 **No External Dependencies** - No external dependencies required (excepts for `websockets`)
+⚡ **Asynchronous** - Uses `aiohttp` for optimal performance
+🚀 **No External Dependencies** - No external dependencies required
 
 ## Installation
 
@@ -61,7 +61,7 @@ automation:
 ## Links / Documentation
 
 - signal-cli-rest-api API Documentation https://bbernhard.github.io/signal-cli-rest-api/#/
-- Websockets library used to receive messages from signal-cli-rest-api https://websockets.readthedocs.io/en/stable/
+- aiohttp WebSocket client used to receive messages from signal-cli-rest-api https://docs.aiohttp.org/en/stable/client_quickstart.html#websockets
 
 ## Requirements
 

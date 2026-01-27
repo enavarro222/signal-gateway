@@ -20,5 +20,4 @@ sphinx>=7.2.0
 sphinx-rtd-theme>=2.0.0
 
 # Dependencies
-websockets>=12.0
 aiohttp>=3.9.0
