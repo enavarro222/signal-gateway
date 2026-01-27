@@ -67,7 +67,7 @@ async def async_setup_entry(
             {
                 vol.Required("message"): cv.string,
                 vol.Optional("title"): cv.string,
-                vol.Required("target"): vol.Any(str, [str]),
+                vol.Required("target"): vol.Any(cv.string, [cv.string]),
                 vol.Optional("attachments"): [cv.string],
             }
         ),
