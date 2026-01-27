@@ -144,6 +144,9 @@ class SignalGatewayNotificationService(BaseNotificationService):
         # Send to each recipient
         for recipient in targets:
             try:
+                # Home Assistant phone numbers may not include the '+' prefix
+                if not recipient.startswith("+"):
+                    recipient = f"+{recipient}"
                 result = await self._client.send_message(
                     target=recipient,
                     message=full_message,
