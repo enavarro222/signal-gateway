@@ -7,8 +7,7 @@ import json
 import logging
 from typing import Any, Callable, Optional
 
-import websockets
-from websockets.client import ClientConnection
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,11 +20,13 @@ class SignalWebSocketListener:
     )
     retry_delay: int = 5  # Delay (in seconds) between connection retry attempts
 
-    def __init__(self, api_url: str, phone_number: str):
+    def __init__(
+        self, api_url: str, phone_number: str, session: aiohttp.ClientSession
+    ) -> None:
         """Initialize the WebSocket listener."""
         self.api_url = api_url.rstrip("/")
         self.phone_number = phone_number
-        self.websocket: Optional[ClientConnection] = None
+        self.session = session
         self._task: Optional[asyncio.Task[None]] = None
         self._message_handler: Optional[Callable[[dict[str, Any]], Any]] = None
         self._running = False
@@ -39,7 +40,6 @@ class SignalWebSocketListener:
         if self._running:
             _LOGGER.warning("WebSocket listener is already running")
             return
-
         self._running = True
         self._task = asyncio.create_task(self._listen())
 
@@ -47,15 +47,14 @@ class SignalWebSocketListener:
         """Disconnect from the WebSocket."""
         self._running = False
 
-        if self.websocket:
-            await self.websocket.close()
-
         if self._task:
             try:
                 await asyncio.wait_for(self._task, timeout=5)
             except asyncio.TimeoutError:
                 _LOGGER.warning("WebSocket listener task did not complete in time")
                 self._task.cancel()
+            except asyncio.CancelledError:
+                pass
 
     async def _listen(self) -> None:
         """Listen for messages from the WebSocket."""
@@ -93,23 +92,41 @@ class SignalWebSocketListener:
         _LOGGER.info("WebSocket listener stopped")
 
     async def _connect_and_listen(self, ws_url: str) -> None:
-        async with websockets.connect(
-            ws_url,
-            close_timeout=5,
+        """Connect to WebSocket and listen for messages."""
+        async with self.session.ws_connect(
+            ws_url, timeout=aiohttp.ClientTimeout(total=None)
         ) as websocket:
-            assert websocket is not None
-            self.websocket = websocket
             _LOGGER.info("Connected to Signal WebSocket")
             try:
-                async for message in websocket:
+                async for msg in websocket:
                     if not self._running:
                         break
-                    await self._handle_message(message)
-            except websockets.exceptions.ConnectionClosed:
-                _LOGGER.info("WebSocket connection closed")
-            except asyncio.CancelledError:  # listening task is cancelled by main code
-                _LOGGER.debug("WebSocket listening task cancelled")
-                pass
+                    if not await self._process_ws_message(msg, websocket):
+                        break
+            except asyncio.CancelledError:
+                _LOGGER.info("WebSocket listening task cancelled")
+            except Exception as err:
+                _LOGGER.error("Error processing WebSocket messages: %s", err)
+                raise
+
+    async def _process_ws_message(
+        self, msg: aiohttp.WSMessage, websocket: aiohttp.ClientWebSocketResponse
+    ) -> bool:
+        """Process a single message from the WebSocket connection.
+
+        Returns:
+            bool: True to continue listening, False to stop.
+        """
+        if msg.type == aiohttp.WSMsgType.TEXT:
+            await self._handle_message(msg.data)
+            return True
+        elif msg.type == aiohttp.WSMsgType.ERROR:
+            _LOGGER.error("WebSocket error: %s", websocket.exception())
+            return False
+        elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING):
+            _LOGGER.info("WebSocket connection closed")
+            return False
+        return True
 
     async def _handle_message(self, message: str) -> None:
         try:

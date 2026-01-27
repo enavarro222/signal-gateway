@@ -24,7 +24,7 @@ class SignalClient:
             session: aiohttp ClientSession for HTTP requests
         """
         self._http_client = SignalHTTPClient(api_url, phone_number, session)
-        self._ws_listener = SignalWebSocketListener(api_url, phone_number)
+        self._ws_listener = SignalWebSocketListener(api_url, phone_number, session)
 
     async def send_message(
         self,

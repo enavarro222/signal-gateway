@@ -7,13 +7,15 @@ from custom_components.signal_gateway.signal.websocket_listener import (
 
 
 @pytest.mark.asyncio
-async def test_connect_sets_running_and_starts_task(monkeypatch):
+async def test_connect_sets_running_and_starts_task(monkeypatch, mock_session):
     """
     Test that connect() sets _running to True and starts the _listen task.
     Also checks that calling connect() again does nothing if already running.
     """
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="+33612345678"
+        api_url="http://localhost:8080",
+        phone_number="+33612345678",
+        session=mock_session,
     )
     monkeypatch.setattr(listener, "_listen", AsyncMock())
     await listener.connect()
@@ -24,36 +26,35 @@ async def test_connect_sets_running_and_starts_task(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_disconnect_closes_websocket_and_task(monkeypatch):
+async def test_disconnect_closes_websocket_and_task(monkeypatch, mock_session):
     """
-    Test that disconnect() closes the websocket and waits for the task to finish without timeout.
+    Test that disconnect() waits for the task to finish without timeout.
     """
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="+33612345678"
+        api_url="http://localhost:8080",
+        phone_number="+33612345678",
+        session=mock_session,
     )
     listener._running = True
-    mock_ws = AsyncMock()
-    listener.websocket = mock_ws
     # Use a real finished Future to simulate a completed task
     done_task = asyncio.Future()
     done_task.set_result(None)
     listener._task = done_task
     await listener.disconnect()
-    mock_ws.close.assert_awaited()
-    # No cancel should be called on a finished task
+    # Task should complete without being cancelled
 
 
 @pytest.mark.asyncio
-async def test_disconnect_task_timeout(monkeypatch, caplog):
+async def test_disconnect_task_timeout(monkeypatch, caplog, mock_session):
     """
     Test that disconnect() cancels the task if it does not finish in time (timeout), and logs a warning.
     """
     listener = SignalWebSocketListener(
-        api_url="http://localhost:8080", phone_number="+33612345678"
+        api_url="http://localhost:8080",
+        phone_number="+33612345678",
+        session=mock_session,
     )
     listener._running = True
-    mock_ws = AsyncMock()
-    listener.websocket = mock_ws
     # Simulate a slow task that will timeout
     listener._task = asyncio.create_task(asyncio.sleep(10))
     caplog.set_level("WARNING")
