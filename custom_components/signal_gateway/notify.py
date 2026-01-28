@@ -39,8 +39,11 @@ async def async_setup_entry(
         _LOGGER.error("Signal Gateway client not initialized")
         return False
 
+    # Get default recipients from config
+    default_recipients = hass.data[DOMAIN][entry.entry_id].get("default_recipients", [])
+
     # Create the notification service
-    service = SignalGatewayNotificationService(hass, client)
+    service = SignalGatewayNotificationService(hass, client, default_recipients)
 
     # Register the Home Assistant service
     async def handle_send_message(call):
@@ -73,7 +76,7 @@ async def async_setup_entry(
             {
                 vol.Required("message"): cv.string,
                 vol.Optional("title"): cv.string,
-                vol.Required("target"): vol.Any(cv.string, [cv.string]),
+                vol.Optional("target"): vol.Any(cv.string, [cv.string]),
                 vol.Optional("attachments"): [cv.string],
             }
         ),
@@ -104,8 +107,8 @@ async def async_setup_entry(
                 },
                 "target": {
                     "name": "Target",
-                    "description": "Phone number (with country code) or group ID. Can be a single value or a list",
-                    "required": True,
+                    "description": "Phone number (with country code) or group ID. Can be a single value or a list. If not provided, uses default recipients from configuration.",
+                    "required": False,
                     "example": "+1234567890",
                     "selector": {"text": {}},
                 },
@@ -145,10 +148,13 @@ async def async_unload_notify_service(hass: HomeAssistant, entry: ConfigEntry) -
 class SignalGatewayNotificationService(BaseNotificationService):
     """Signal Gateway notification service for Home Assistant."""
 
-    def __init__(self, hass: HomeAssistant, client: SignalClient) -> None:
+    def __init__(
+        self, hass: HomeAssistant, client: SignalClient, default_recipients: list[str]
+    ) -> None:
         """Initialize the notification service."""
         self.hass = hass
         self._client: SignalClient = client
+        self._default_recipients: list[str] = default_recipients
 
     def send_message(self, message, **kwargs):
         raise NotImplementedError("Use async_send_message instead")
@@ -157,7 +163,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
         self,
         message: Optional[str] = None,
         title: Optional[str] = None,
-        target: Optional[Union[str, list[Any]]] = None,
+        target: Optional[Union[str, list[str]]] = None,
         attachments: Optional[list[Any]] = None,
         **kwargs: Any,
     ) -> None:
@@ -173,15 +179,20 @@ class SignalGatewayNotificationService(BaseNotificationService):
             _LOGGER.error("Message is required")
             return
 
+        # Use default recipients if target not provided
         if not target:
-            _LOGGER.error("Target (phone number or group ID) is required")
-            return
-
-        # Ensure target is a list
-        if isinstance(target, str):
-            targets = [target]
+            if not self._default_recipients:
+                _LOGGER.error(
+                    "Target (phone number or group ID) is required and no default recipients configured"
+                )
+                return
+            targets = self._default_recipients
         else:
-            targets = target
+            # Ensure target is a list
+            if isinstance(target, str):
+                targets = [target]
+            else:
+                targets = target
 
         # Prepend title if provided
         full_message = message

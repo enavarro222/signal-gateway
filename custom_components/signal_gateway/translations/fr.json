@@ -8,7 +8,25 @@
           "name": "Nom",
           "signal_cli_rest_api_url": "URL de l'API REST Signal CLI",
           "phone_number": "Numéro de téléphone (numéro d'envoi Signal)",
-          "websocket_enabled": "Activer l'écoute WebSocket pour les messages entrants"
+          "websocket_enabled": "Activer l'écoute WebSocket pour les messages entrants",
+          "recipients": "Destinataires par défaut (un par ligne)"
+        },
+        "data_description": {
+          "recipients": "Numéros de téléphone à qui envoyer par défaut lorsqu'aucune cible n'est spécifiée. Entrez un numéro par ligne avec l'indicatif pays, par ex. +1234567890"
+        }
+      },
+      "init": {
+        "title": "Options de Signal Gateway",
+        "description": "Configurer les options de Signal Gateway",
+        "data": {
+          "name": "Nom",
+          "signal_cli_rest_api_url": "URL de l'API REST Signal CLI",
+          "phone_number": "Numéro de téléphone (numéro d'envoi Signal)",
+          "websocket_enabled": "Activer l'écoute WebSocket pour les messages entrants",
+          "recipients": "Destinataires par défaut (un par ligne)"
+        },
+        "data_description": {
+          "recipients": "Numéros de téléphone à qui envoyer par défaut lorsqu'aucune cible n'est spécifiée. Entrez un numéro par ligne avec l'indicatif pays, par ex. +1234567890"
         }
       }
     },
