@@ -159,6 +159,38 @@ class SignalGatewayNotificationService(BaseNotificationService):
     def send_message(self, message, **kwargs):
         raise NotImplementedError("Use async_send_message instead")
 
+    def _fix_phone_number(recipient: str) -> str:
+        """
+        Fix phone number format by ensuring it has a '+' prefix.
+
+        Home Assistant may interpret phone numbers as integers in certain contexts,
+        which strips the leading '+' sign. This function restores the '+' prefix
+        for phone numbers that are all digits but missing it.
+
+        Args:
+            recipient (str): The phone number to fix, with or without '+' prefix.
+
+        Returns:
+            str: The phone number with '+' prefix added if it was missing.
+
+        Examples:
+            >>> SignalGatewayNotificationService._fix_phone_number("+1234567890")
+            '+1234567890'
+
+            >>> SignalGatewayNotificationService._fix_phone_number("1234567890")
+            '+1234567890'
+
+            >>> SignalGatewayNotificationService._fix_phone_number("+44123456")
+            '+44123456'
+
+            >>> SignalGatewayNotificationService._fix_phone_number("notanumber")
+            'notanumber'
+        """
+        # Home Assistant phone numbers may not include the '+' prefix
+        if not recipient.startswith("+") and recipient.isdigit():
+            recipient = f"+{recipient}"
+        return recipient
+
     async def async_send_message(
         self,
         message: Optional[str] = None,
@@ -202,9 +234,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
         # Send to each recipient
         for recipient in targets:
             try:
-                # Home Assistant phone numbers may not include the '+' prefix
-                if not recipient.startswith("+"):
-                    recipient = f"+{recipient}"
+                recipient = self._fix_phone_number(recipient)
                 result = await self._client.send_message(
                     target=recipient,
                     message=full_message,
