@@ -1,6 +1,8 @@
 # Signal Gateway
 
-Signal Gateway is a custom Home Assistant integration that provides an alternative for integrating Signal with Home Assistant.
+Signal Gateway is a custom integration that provides an alternative for integrating Signal with Home Assistant.
+The main difference with the official [Signal Messenger](https://www.home-assistant.io/integrations/signal_messenger/) integration
+is the ability to receive messages from Signal Messenger REST API in real time using WebSockets.
 
 ## Features
 
@@ -8,7 +10,7 @@ Signal Gateway is a custom Home Assistant integration that provides an alternati
 📱 **Message Reception** - WebSocket listener to capture incoming messages
 🔄 **Home Assistant Events** - Automatic relay to `signal_received` events
 ⚡ **Asynchronous** - Uses `aiohttp` for optimal performance
-🚀 **No External Dependencies** - No external dependencies required
+🚀 **No External Dependencies** - No additional Python packages required
 
 ## Installation
 
@@ -26,30 +28,73 @@ Signal Gateway is a custom Home Assistant integration that provides an alternati
 
 ## Quick Setup
 
-1. Go to **Settings > Devices and Services > Create an Automation**
+1. Go to **Settings > Devices and Services > Add Integration**
 2. Search for "Signal Gateway"
 3. Configure:
-   - **Signal CLI API URL**: `http://localhost:8080` (or your server)
-   - **Signal Number**: Your Signal number (e.g., `+33612345678`)
-   - **Enable WebSocket**: Check to receive messages
+   - **Name**: The name of your Signal Gateway integration (default: "Signal")
+   - **Signal CLI API URL**: URL of your signal-cli-rest-api server (e.g., `http://localhost:8080`)
+   - **Phone Number**: Your Signal sender number in international format with country code (e.g., `+33612345678`)
+   - **Default Recipients** (optional): Phone numbers to send to by default (one per line, e.g., `+33687654321`)
+   - **Enable WebSocket listener**: Enable to receive incoming messages in real-time
 
 ## Usage
 
 ### Send a Message (Notification Service)
 
+The integration creates a notification service named based on your configured integration name (e.g., `notify.signal` for default name).
+
+**Basic message:**
 ```yaml
-service: notify.signal_gateway
+service: notify.signal
 data:
   message: "Hello from Home Assistant!"
-  data:
-    target: "+33612345678"
+  target: "+33612345678"
 ```
 
-### Event - Messages Received
+**With title:**
+```yaml
+service: notify.signal
+data:
+  title: "Alert"
+  message: "Temperature is above threshold!"
+  target: "+33612345678"
+```
+
+**Multiple recipients:**
+```yaml
+service: notify.signal
+data:
+  message: "Notification for multiple people"
+  target:
+    - "+33612345678"
+    - "+33687654321"
+```
+
+**With attachments:**
+```yaml
+service: notify.signal
+data:
+  message: "Check this camera snapshot"
+  target: "+33612345678"
+  attachments:
+    - "/config/www/camera_snapshot.jpg"
+```
+
+**Using default recipients** (if configured):
+```yaml
+service: notify.signal
+data:
+  message: "This goes to default recipients"
+```
+
+### Receive Messages (Event Automation)
+
+When WebSocket listener is enabled, incoming messages trigger `signal_received` events:
 
 ```yaml
 automation:
-  - trigger:
+  - alias: "Log received Signal messages"
+    trigger:
       platform: event
       event_type: signal_received
     action:
@@ -58,15 +103,53 @@ automation:
           message: "Message received: {{ trigger.event.data }}"
 ```
 
-## Links / Documentation
+**Example - Respond to specific message:**
+```yaml
+automation:
+  - alias: "Respond to home command"
+    trigger:
+      platform: event
+      event_type: signal_received
+    condition:
+      - condition: template
+        value_template: "{{ 'home' in trigger.event.data.message | lower }}"
+    action:
+      - service: notify.signal
+        data:
+          message: "Welcome home!"
+          target: "{{ trigger.event.data.sender }}"
+```
 
-- signal-cli-rest-api API Documentation https://bbernhard.github.io/signal-cli-rest-api/#/
-- aiohttp WebSocket client used to receive messages from signal-cli-rest-api https://docs.aiohttp.org/en/stable/client_quickstart.html#websockets
+## Configuration
+
+### Multiple Instances
+
+You can configure multiple Signal Gateway instances with different names to use different Signal accounts:
+
+1. Add another integration instance with a unique name (e.g., "Signal Work")
+2. This creates a separate service: `notify.signal_work`
+
+### Updating Configuration
+
+To modify your configuration:
+1. Go to **Settings > Devices and Services**
+2. Find your Signal Gateway integration
+3. Click **Configure** to update settings
+4. The integration will automatically reload with new settings
 
 ## Requirements
 
 - Home Assistant 2024.1.0 or higher
-- [signal-cli-rest-api](https://github.com/spartan737/signal-cli-rest-api) running
+- [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) server running and accessible
+  - You can use the [Home Assistant Add-on](https://github.com/haberda/hassio_addons) to easily run signal-cli-rest-api
+  - **Important:** You must first register/configure a phone number in signal-cli-rest-api before using this integration. See the [setup guide](https://github.com/bbernhard/signal-cli-rest-api/blob/master/doc/HOMEASSISTANT.md#set-up-a-phone-number) for instructions.
+
+## Links / Documentation
+
+- [signal-cli-rest-api API Documentation](https://bbernhard.github.io/signal-cli-rest-api/#/)
+- [signal-cli-rest-api Home Assistant Add-on](https://github.com/haberda/hassio_addons)
+- [Phone Number Registration Guide](https://github.com/bbernhard/signal-cli-rest-api/blob/master/doc/HOMEASSISTANT.md#set-up-a-phone-number)
+- [aiohttp WebSocket Client Documentation](https://docs.aiohttp.org/en/stable/client_quickstart.html#websockets)
 
 ## License
 
@@ -74,7 +157,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-For issues and questions, visit the [Issues](https://github.com/username/signal-gateway/issues) page.
+For issues and questions, visit the [Issues](https://github.com/enavarro222/signal-gateway/issues) page.
 
 ## Contributions
 
