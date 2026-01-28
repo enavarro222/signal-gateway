@@ -8,12 +8,31 @@
           "name": "Name",
           "signal_cli_rest_api_url": "Signal CLI REST API URL",
           "phone_number": "Phone Number (Signal sender number)",
-          "websocket_enabled": "Enable WebSocket listener for incoming messages"
+          "websocket_enabled": "Enable WebSocket listener for incoming messages",
+          "recipients": "Default Recipients (one per line)"
+        },
+        "data_description": {
+          "recipients": "Phone numbers to send to by default when no target is specified. Enter one number per line with country code, e.g. +1234567890"
+        }
+      },
+      "init": {
+        "title": "Signal Gateway Options",
+        "description": "Configure Signal Gateway options",
+        "data": {
+          "name": "Name",
+          "signal_cli_rest_api_url": "Signal CLI REST API URL",
+          "phone_number": "Phone Number (Signal sender number)",
+          "websocket_enabled": "Enable WebSocket listener for incoming messages",
+          "recipients": "Default Recipients (one per line)"
+        },
+        "data_description": {
+          "recipients": "Phone numbers to send to by default when no target is specified. Enter one number per line with country code, e.g. +1234567890"
         }
       }
     },
     "error": {
       "invalid_url": "Invalid API URL",
+      "duplicate_service_name": "A Signal Gateway with this name already exists. Please choose a different name.",
       "unknown": "Unknown error occurred"
     },
     "abort": {
@@ -41,4 +60,3 @@
     }
   }
 }
-
