@@ -14,6 +14,7 @@
     },
     "error": {
       "invalid_url": "Invalid API URL",
+      "duplicate_service_name": "A Signal Gateway with this name already exists. Please choose a different name.",
       "unknown": "Unknown error occurred"
     },
     "abort": {
