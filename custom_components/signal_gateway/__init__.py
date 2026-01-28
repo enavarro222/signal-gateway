@@ -42,6 +42,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     integration_name = entry.data.get(CONF_NAME, DOMAIN)
     service_name = cv.slugify(integration_name)
 
+    # Check for duplicate service names across all entries
+    for other_entry_id, other_data in hass.data[DOMAIN].items():
+        if other_entry_id != entry.entry_id:
+            other_service_name = other_data.get("service_name")
+            if other_service_name == service_name:
+                _LOGGER.error(
+                    "Cannot setup Signal Gateway '%s': service name '%s' is already in use by another entry",
+                    integration_name,
+                    service_name,
+                )
+                return False
+
     _LOGGER.debug("Singal Gateway integration setup (name: %s)", service_name)
 
     # Store the client, and the service_name
