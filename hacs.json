@@ -1,0 +1,14 @@
+{
+  "name": "Signal Gateway",
+  "homeassistant": "2024.1.0",
+  "codeowners": [],
+  "content_in_root": false,
+  "domains": [
+    "signal_gateway"
+  ],
+  "iot_class": "local_polling",
+  "requirements": [],
+  "documentation": "https://github.com/enavarro222/signal-gateway",
+  "issue_tracker": "https://github.com/enavarro222/signal-gateway/issues",
+  "render_readme": true
+}

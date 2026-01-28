@@ -1,0 +1,14 @@
+{
+  "domain": "signal_gateway",
+  "name": "Signal Gateway",
+  "codeowners": [
+    "@enavarro222"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/enavarro222/signal-gateway",
+  "issues": "https://github.com/enavarro222/signal-gateway/issues",
+  "requirements": [],
+  "version": "0.1.0",
+  "homeassistant": "2024.1.0",
+  "integration_type": "service"
+}
