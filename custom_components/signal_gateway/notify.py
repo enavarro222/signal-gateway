@@ -66,7 +66,7 @@ async def async_setup_entry(
         entry.entry_id,
     )
     hass.services.async_register(
-        DOMAIN,
+        NOTIFY_DOMAIN,
         service_name,
         handle_send_message,
         schema=vol.Schema(
@@ -82,7 +82,7 @@ async def async_setup_entry(
     # Set service schema for GUI
     async_set_service_schema(
         hass,
-        DOMAIN,
+        NOTIFY_DOMAIN,
         service_name,
         {
             "name": "Send message",
@@ -137,7 +137,7 @@ async def async_unload_notify_service(hass: HomeAssistant, entry: ConfigEntry) -
             service_name,
             entry.entry_id,
         )
-        hass.services.async_remove(DOMAIN, service_name)
+        hass.services.async_remove(NOTIFY_DOMAIN, service_name)
 
     return True
 

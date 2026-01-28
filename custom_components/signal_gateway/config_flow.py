@@ -75,7 +75,7 @@ def build_signal_gateway_schema(
         {
             vol.Optional(
                 CONF_NAME,
-                default=defaults.get(CONF_NAME, "Signal Gateway"),
+                default=defaults.get(CONF_NAME, "Signal"),
             ): str,
             vol.Required(
                 CONF_SIGNAL_CLI_REST_API_URL,
