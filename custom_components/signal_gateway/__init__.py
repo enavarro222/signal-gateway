@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_PHONE_NUMBER,
+    CONF_RECIPIENTS,
     CONF_SIGNAL_CLI_REST_API_URL,
     CONF_WEBSOCKET_ENABLED,
     DOMAIN,
@@ -24,6 +25,48 @@ from .notify import async_unload_notify_service
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.NOTIFY]
+
+
+def parse_recipients(recipients_str: str) -> list[str]:
+    """Parse recipients from a string supporting newlines and/or commas.
+
+    Args:
+        recipients_str: String containing recipients separated by newlines and/or commas
+
+    Returns:
+        List of recipient phone numbers/IDs with whitespace stripped
+
+    Examples:
+        >>> parse_recipients("+1234567890")
+        ['+1234567890']
+
+        >>> parse_recipients("+1234567890, +9876543210")
+        ['+1234567890', '+9876543210']
+
+        >>> parse_recipients("+1234567890\\n+9876543210")
+        ['+1234567890', '+9876543210']
+
+        >>> parse_recipients("+1234567890, +9876543210\\n+5551234567")
+        ['+1234567890', '+9876543210', '+5551234567']
+
+        >>> parse_recipients("  +1234567890  ,  +9876543210  ")
+        ['+1234567890', '+9876543210']
+
+        >>> parse_recipients("")
+        []
+
+        >>> parse_recipients("  \\n  \\n  ")
+        []
+    """
+    recipients = []
+    if recipients_str:
+        # Split by newlines first, then by commas, and filter out empty entries
+        for line in recipients_str.splitlines():
+            for recipient in line.split(","):
+                recipient = recipient.strip()
+                if recipient:
+                    recipients.append(recipient)
+    return recipients
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -56,10 +99,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Singal Gateway integration setup (name: %s)", service_name)
 
-    # Store the client, and the service_name
+    # Get default recipients if configured
+    recipients_str = entry.data.get(CONF_RECIPIENTS, "")
+    default_recipients = parse_recipients(recipients_str)
+
+    # Store the client, service_name, and default recipients
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
         "service_name": service_name,
+        "default_recipients": default_recipients,
     }
 
     # Set up WebSocket listener if enabled

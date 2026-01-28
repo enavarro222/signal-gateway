@@ -10,6 +10,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_PHONE_NUMBER,
+    CONF_RECIPIENTS,
     CONF_SIGNAL_CLI_REST_API_URL,
     CONF_WEBSOCKET_ENABLED,
     DOMAIN,
@@ -89,6 +90,10 @@ def build_signal_gateway_schema(
                 CONF_WEBSOCKET_ENABLED,
                 default=defaults.get(CONF_WEBSOCKET_ENABLED, True),
             ): bool,
+            vol.Optional(
+                CONF_RECIPIENTS,
+                default=defaults.get(CONF_RECIPIENTS, ""),
+            ): str,
         }
     )
 
