@@ -37,6 +37,30 @@ is the ability to receive messages from Signal Messenger REST API in real time u
    - **Default Recipients** (optional): Phone numbers to send to by default (one per line, e.g., `+33687654321`)
    - **Enable WebSocket listener**: Enable to receive incoming messages in real-time
 
+### Migrating from Official Signal Messenger Integration
+
+If you're replacing the official [Signal Messenger](https://www.home-assistant.io/integrations/signal_messenger/) integration:
+
+1. **Remove the official integration** from your `configuration.yaml`:
+   ```yaml
+   # Remove or comment out these lines:
+   # signal_messenger:
+   #   url: "http://127.0.0.1:8080"
+   #   number: "+33612345678"
+   #   recipients:
+   #     - "+33687654321"
+   ```
+
+2. **Restart Home Assistant** to unload the official integration
+
+3. **Install Signal Gateway** following the Quick Setup above
+
+4. **Name your service "Signal"** during configuration - this ensures the notification service is named `notify.signal`, maintaining compatibility with existing automations
+
+5. **Your existing automations will work without changes** - all calls to `notify.signal` will automatically use Signal Gateway instead of the official integration
+
+**Note:** Signal Gateway uses the same signal-cli-rest-api backend, so no changes to your Signal server setup are needed.
+
 ## Usage
 
 ### Send a Message (Notification Service)
