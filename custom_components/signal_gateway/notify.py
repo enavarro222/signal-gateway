@@ -234,7 +234,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
             Validated Path object
 
         Raises:
-            ValueError: If the file doesn't exist or isn't readable
+            ValueError: If the file doesn't exist, isn't readable, or exceeds size limit
         """
         # Handle file:// URLs
         if file_path.startswith("file://"):
@@ -247,6 +247,14 @@ class SignalGatewayNotificationService(BaseNotificationService):
             raise ValueError(f"Attachment path is not a file: {file_path}")
         if not os.access(path, os.R_OK):
             raise ValueError(f"Attachment file is not readable: {file_path}")
+
+        # Check file size
+        file_size = path.stat().st_size
+        if file_size > CONF_MAX_ALLOWED_DOWNLOAD_SIZE_BYTES:
+            raise ValueError(
+                f"Attachment file {file_path} size ({file_size} bytes) "
+                f"exceeds maximum allowed size ({CONF_MAX_ALLOWED_DOWNLOAD_SIZE_BYTES} bytes)"
+            )
 
         return path
 
@@ -461,39 +469,36 @@ class SignalGatewayNotificationService(BaseNotificationService):
             verify_ssl: Whether to verify SSL certificates
 
         Returns:
-            List of base64 encoded attachments, or None if processing fails
+            List of base64 encoded attachments, or None if no attachments
+
+        Raises:
+            ValueError: If file validation fails (not found, too large, not readable)
+            OSError: If file I/O fails
+            aiohttp.ClientError: If URL download fails
 
         Note:
-            Catches all exceptions (ValueError, OSError, ClientError, etc.) and logs them.
-            Returns None on any error to allow the message to be sent without attachments.
+            Exceptions are propagated to notify the user of attachment failures.
+            Message will not be sent if attachment processing fails.
         """
         base64_attachments = []
 
-        try:
-            # Encode local file paths to base64
-            if attachments:
-                local_base64 = self._encode_attachments_from_paths(attachments)
-                base64_attachments.extend(local_base64)
-                _LOGGER.debug("Encoded %d local attachments", len(local_base64))
+        # Encode local file paths to base64
+        if attachments:
+            local_base64 = self._encode_attachments_from_paths(attachments)
+            base64_attachments.extend(local_base64)
+            _LOGGER.debug("Encoded %d local attachments", len(local_base64))
 
-            # Download from URLs and encode to base64
-            if urls:
-                url_base64 = await self._download_attachments_from_urls(
-                    urls, verify_ssl
+        # Download from URLs and encode to base64
+        if urls:
+            url_base64 = await self._download_attachments_from_urls(urls, verify_ssl)
+            if url_base64:
+                base64_attachments.extend(url_base64)
+                _LOGGER.debug(
+                    "Downloaded and encoded %d attachments from URLs",
+                    len(url_base64),
                 )
-                if url_base64:
-                    base64_attachments.extend(url_base64)
-                    _LOGGER.debug(
-                        "Downloaded and encoded %d attachments from URLs",
-                        len(url_base64),
-                    )
 
-            return base64_attachments if base64_attachments else None
-
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            # Catch all: ValueError (file validation/size), OSError (I/O), ClientError (network)
-            _LOGGER.error("Attachment processing failed: %s", err, exc_info=True)
-            return None
+        return base64_attachments if base64_attachments else None
 
     async def _send_to_recipient(
         self, recipient: str, message: str, base64_attachments: Optional[list[str]]
@@ -555,13 +560,10 @@ class SignalGatewayNotificationService(BaseNotificationService):
         # Prepare message
         full_message = self._prepare_message(message, title)
 
-        # Process attachments
+        # Process attachments (will raise exception on failure)
         base64_attachments = await self._process_attachments(
             attachments, urls, verify_ssl
         )
-        if attachments or urls:
-            if base64_attachments is None:
-                return  # Attachment processing failed
 
         # Send to each recipient
         for recipient in targets:
