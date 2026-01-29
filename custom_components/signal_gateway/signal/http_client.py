@@ -26,14 +26,14 @@ class SignalHTTPClient:
         self,
         target: str,
         message: str,
-        attachments: Optional[list[str]] = None,
+        base64_attachments: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Send a message via Signal.
 
         Args:
             target: Phone number or group ID to send to
             message: Message text to send
-            attachments: Optional list of attachment URLs
+            base64_attachments: Optional list of base64 encoded attachments
 
         Returns:
             Response from the API
@@ -46,8 +46,15 @@ class SignalHTTPClient:
             "number": self.phone_number,
         }
 
-        if attachments:
-            payload["attachments"] = attachments
+        if base64_attachments:
+            payload["base64_attachments"] = base64_attachments
+
+        _LOGGER.debug(
+            "Sending message to %s (message length: %d, attachments: %d)",
+            target,
+            len(message),
+            len(base64_attachments) if base64_attachments else 0,
+        )
 
         try:
             async with self.session.post(
@@ -55,18 +62,30 @@ class SignalHTTPClient:
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
+                response_text = await response.text()
+
                 if response.status >= 300:
-                    error_text = await response.text()
                     _LOGGER.error(
                         "Signal API error: %s - %s",
                         response.status,
-                        error_text,
+                        response_text,
+                    )
+                    _LOGGER.debug(
+                        "Failed request payload: recipients=%s, message_len=%d, attachments=%d",
+                        payload["recipients"],
+                        len(payload["message"]),
+                        len(payload.get("base64_attachments", [])),
                     )
                     raise Exception(
-                        f"Signal API error: {response.status} - {error_text}"
+                        f"Signal API error: {response.status} - {response_text}"
                     )
 
-                return await response.json()
+                try:
+                    return await response.json()
+                except Exception:
+                    # If JSON parsing fails, return the text
+                    _LOGGER.warning("Response is not valid JSON: %s", response_text)
+                    return {"success": True, "response": response_text}
         except aiohttp.ClientError as err:
             _LOGGER.error("Error connecting to Signal API: %s", err)
             raise
