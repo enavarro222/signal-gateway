@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Optional
 
@@ -10,7 +11,7 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 
-class SignalHTTPClient:
+class SignalHTTPClient:  # pylint: disable=too-few-public-methods
     """HTTP client for Signal-cli-rest-api.
 
     See https://github.com/bbernhard/signal-cli-rest-api
@@ -76,13 +77,13 @@ class SignalHTTPClient:
                         len(payload["message"]),
                         len(payload.get("base64_attachments", [])),
                     )
-                    raise Exception(
+                    raise RuntimeError(
                         f"Signal API error: {response.status} - {response_text}"
                     )
 
                 try:
                     return await response.json()
-                except Exception:
+                except (aiohttp.ContentTypeError, json.JSONDecodeError):
                     # If JSON parsing fails, return the text
                     _LOGGER.warning("Response is not valid JSON: %s", response_text)
                     return {"success": True, "response": response_text}

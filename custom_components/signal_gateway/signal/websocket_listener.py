@@ -93,9 +93,9 @@ class SignalWebSocketListener:
 
     async def _connect_and_listen(self, ws_url: str) -> None:
         """Connect to WebSocket and listen for messages."""
-        async with self.session.ws_connect(
-            ws_url, timeout=aiohttp.ClientTimeout(total=None)
-        ) as websocket:
+        # Use ws_close=None to avoid timeout on connection close
+        timeout = aiohttp.ClientWSTimeout(ws_close=None)
+        async with self.session.ws_connect(ws_url, timeout=timeout) as websocket:
             _LOGGER.info("Connected to Signal WebSocket")
             try:
                 async for msg in websocket:
@@ -120,10 +120,10 @@ class SignalWebSocketListener:
         if msg.type == aiohttp.WSMsgType.TEXT:
             await self._handle_message(msg.data)
             return True
-        elif msg.type == aiohttp.WSMsgType.ERROR:
+        if msg.type == aiohttp.WSMsgType.ERROR:
             _LOGGER.error("WebSocket error: %s", websocket.exception())
             return False
-        elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING):
+        if msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING):
             _LOGGER.info("WebSocket connection closed")
             return False
         return True

@@ -98,7 +98,9 @@ def build_signal_gateway_schema(
     )
 
 
-class SignalGatewayConfigFlow(ConfigFlow, domain=DOMAIN):
+class SignalGatewayConfigFlow(
+    ConfigFlow, domain=DOMAIN
+):  # pylint: disable=abstract-method
     """Handle a config flow for Signal Gateway."""
 
     VERSION = 1
