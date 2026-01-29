@@ -94,6 +94,18 @@ data:
     - "+33687654321"
 ```
 
+**Send to a group:**
+```yaml
+service: notify.signal
+data:
+  message: "Hello everyone in the group!"
+  target: "group.Unp6dnAxbGZCWDNiVmpLdWFyYXlJQUFGRDladlFJbS81WVhwdEdDZHR5RT0="
+```
+
+> **Note:** To get your group ID, call the signal-cli-rest-api endpoint:
+> `GET http://your-api:8080/v1/groups/+yourphonenumber`
+> Use the `id` field (starts with `group.`), not the `internal_id`.
+
 **With local file attachments:**
 ```yaml
 service: notify.signal
