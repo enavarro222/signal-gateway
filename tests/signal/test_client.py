@@ -11,7 +11,7 @@ async def test_signal_client_send_message():
     )
     # Patch the HTTP client's send_message method
     client._http_client.send_message = AsyncMock(return_value={"success": True})
-    result = await client.send_message("+33698765432", "Hello", attachments=None)
+    result = await client.send_message("+33698765432", "Hello", base64_attachments=None)
     assert result == {"success": True}
 
 

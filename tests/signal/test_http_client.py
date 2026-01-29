@@ -19,5 +19,5 @@ async def test_http_client_send_message_success():
     client = SignalHTTPClient(
         api_url="http://localhost:8080", phone_number="+33612345678", session=session
     )
-    result = await client.send_message("+33698765432", "Hello", attachments=None)
+    result = await client.send_message("+33698765432", "Hello", base64_attachments=None)
     assert result == {"result": "ok"}
