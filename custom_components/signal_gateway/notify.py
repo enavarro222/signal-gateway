@@ -38,7 +38,7 @@ ATTR_VERIFY_SSL = "verify_ssl"
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    async_add_entities,
+    async_add_entities,  # pylint: disable=unused-argument
 ) -> bool:
     """Set up Signal Gateway notify from a config entry."""
     if DOMAIN not in hass.data or entry.entry_id not in hass.data[DOMAIN]:
@@ -122,7 +122,11 @@ async def async_setup_entry(
                 },
                 "target": {
                     "name": "Target",
-                    "description": "Phone number (with country code) or group ID. Can be a single value or a list. If not provided, uses default recipients from configuration.",
+                    "description": (
+                        "Phone number (with country code) or group ID. "
+                        "Can be a single value or a list. If not provided, "
+                        "uses default recipients from configuration."
+                    ),
                     "required": False,
                     "example": "+1234567890",
                     "selector": {"text": {}},
@@ -380,7 +384,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
         urls: list[str],
         verify_ssl: bool = True,
         max_size: int = CONF_MAX_ALLOWED_DOWNLOAD_SIZE_BYTES,
-    ) -> list[str]:
+    ) -> Optional[list[str]]:
         """Download attachments from URLs and encode as base64.
 
         Args:
@@ -418,7 +422,8 @@ class SignalGatewayNotificationService(BaseNotificationService):
         if not target:
             if not self._default_recipients:
                 _LOGGER.error(
-                    "Target (phone number or group ID) is required and no default recipients configured"
+                    "Target (phone number or group ID) is required "
+                    "and no default recipients configured"
                 )
                 return None
             return self._default_recipients
@@ -485,7 +490,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
 
             return base64_attachments if base64_attachments else None
 
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-exception-caught
             # Catch all: ValueError (file validation/size), OSError (I/O), ClientError (network)
             _LOGGER.error("Attachment processing failed: %s", err, exc_info=True)
             return None
@@ -512,11 +517,12 @@ class SignalGatewayNotificationService(BaseNotificationService):
             )
             _LOGGER.info("Notification sent successfully to %s", recipient)
             _LOGGER.debug("Send result: %s", result)
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-exception-caught
             _LOGGER.error(
                 "Failed to send notification to %s: %s", recipient, err, exc_info=True
             )
 
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     async def async_send_message(
         self,
         message: Optional[str] = None,

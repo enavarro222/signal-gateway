@@ -91,7 +91,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             other_service_name = other_data.get("service_name")
             if other_service_name == service_name:
                 _LOGGER.error(
-                    "Cannot setup Signal Gateway '%s': service name '%s' is already in use by another entry",
+                    "Cannot setup Signal Gateway '%s': service name '%s' "
+                    "is already in use by another entry",
                     integration_name,
                     service_name,
                 )
