@@ -1,0 +1,53 @@
+#!/bin/bash
+# Pre-commit hook for Signal Gateway
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+
+echo "🔍 Running pre-commit checks..."
+
+PYTHON_DIR="custom_components/signal_gateway"
+PYTHON_FILES=$(find "$PYTHON_DIR" -name "*.py" -type f)
+
+if [ -z "$PYTHON_FILES" ]; then
+    echo -e "${RED}❌ No Python files found${NC}"
+    exit 1
+fi
+
+FAILED=0
+
+# Format check with black
+echo "📝 Checking code format with black..."
+black --check $PYTHON_FILES
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  Formatting issues found. Run: black $PYTHON_FILES${NC}"
+    FAILED=1
+fi
+
+# Lint check with pylint
+echo "🔗 Checking with pylint..."
+pylint $PYTHON_FILES
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  Lint issues found${NC}"
+    FAILED=1
+fi
+
+# Type checking with mypy
+echo "🎯 Checking types with mypy..."
+mypy "$PYTHON_DIR" --ignore-missing-imports
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}⚠️  Type checking issues found${NC}"
+    FAILED=1
+fi
+
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}✅ Pre-commit checks completed successfully${NC}"
+    exit 0
+else
+    echo -e "${RED}❌ Pre-commit checks failed. Please fix the issues above.${NC}"
+    exit 1
+fi
