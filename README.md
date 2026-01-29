@@ -70,7 +70,7 @@ data:
     - "+33687654321"
 ```
 
-**With attachments:**
+**With local file attachments:**
 ```yaml
 service: notify.signal
 data:
@@ -78,6 +78,30 @@ data:
   target: "+33612345678"
   attachments:
     - "/config/www/camera_snapshot.jpg"
+    - "/config/www/photo.png"
+```
+
+**With URL attachments:**
+```yaml
+service: notify.signal
+data:
+  message: "Weather map"
+  target: "+33612345678"
+  urls:
+    - "https://example.com/weather_map.png"
+  verify_ssl: true  # Optional, default is true
+```
+
+**Combining local files and URLs:**
+```yaml
+service: notify.signal
+data:
+  message: "Multiple attachments"
+  target: "+33612345678"
+  attachments:
+    - "/config/www/local_file.jpg"
+  urls:
+    - "https://example.com/remote_image.png"
 ```
 
 **Using default recipients** (if configured):
@@ -121,6 +145,27 @@ automation:
 ```
 
 ## Configuration
+
+### Attachment Support
+
+The integration supports two types of attachments:
+
+**Local Files:**
+- Provide absolute file paths accessible from Home Assistant
+- Files are automatically validated (existence, readability)
+- Automatically encoded to base64 before sending
+- Supports `file://` URL scheme (automatically stripped)
+
+**Remote URLs:**
+- Download files from HTTP/HTTPS URLs
+- Maximum download size: 50 MB per file
+- SSL certificate verification (can be disabled with `verify_ssl: false`)
+- Files are downloaded and encoded to base64 automatically
+
+**Important Notes:**
+- Both attachment types can be combined in a single message
+- All files (local and remote) are base64-encoded automatically
+
 
 ### Multiple Instances
 
