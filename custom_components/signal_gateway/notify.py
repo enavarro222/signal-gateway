@@ -159,6 +159,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
     def send_message(self, message, **kwargs):
         raise NotImplementedError("Use async_send_message instead")
 
+    @staticmethod
     def _fix_phone_number(recipient: str) -> str:
         """
         Fix phone number format by ensuring it has a '+' prefix.
