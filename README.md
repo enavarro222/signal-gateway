@@ -243,3 +243,21 @@ For issues and questions, visit the [Issues](https://github.com/enavarro222/sign
 ## Contributions
 
 Contributions are welcome! Feel free to submit pull requests.
+
+### Development Setup
+
+To set up the development environment:
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements-dev.txt`
+3. Install git hooks: `make install-hooks`
+4. Run tests: `make tests`
+
+The git hooks will automatically run code formatting (black), linting (pylint), and type checking (mypy) before each commit.
+**Available Make targets:**
+- `make check` - Run all code quality checks (format + lint)
+- `make format` - Check code formatting with black
+- `make lint` - Run pylint and mypy
+- `make tests` - Run test suite with coverage
+- `make install-hooks` - Install git pre-commit hooks
+- `make run` - Start Home Assistant for development
