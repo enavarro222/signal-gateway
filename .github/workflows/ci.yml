@@ -33,11 +33,19 @@ jobs:
         run: make lint
 
   test:
-    name: Tests
+    name: Tests (HA ${{ matrix.ha-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13"]
+        include:
+          - python-version: "3.13"
+            ha-version: "2025.12"
+            test-component-version: ">=0.13.310"
+            upload-coverage: false
+          - python-version: "3.13"
+            ha-version: "2026.1"
+            test-component-version: ">=0.13.310"
+            upload-coverage: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -52,13 +60,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install black pylint mypy flake8 isort pytest pytest-asyncio pytest-cov
+          pip install "homeassistant==${{ matrix.ha-version }}.*"
+          pip install "pytest-homeassistant-custom-component${{ matrix.test-component-version }}"
 
       - name: Run tests with coverage
         run: make tests
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.13'
+        if: matrix.upload-coverage
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
