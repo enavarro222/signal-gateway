@@ -71,6 +71,7 @@ async def async_setup_entry(
             attachments=call.data.get("attachments"),
             urls=call.data.get("urls"),
             verify_ssl=call.data.get("verify_ssl", True),
+            text_mode=call.data.get("text_mode", "normal"),
         )
 
     # Get the service name from the config entry
@@ -93,6 +94,7 @@ async def async_setup_entry(
                 vol.Optional("attachments"): [cv.string],
                 vol.Optional("urls"): [cv.string],
                 vol.Optional("verify_ssl"): cv.boolean,
+                vol.Optional("text_mode"): vol.In(["normal", "styled"]),
             }
         ),
     )
@@ -150,6 +152,17 @@ async def async_setup_entry(
                     "description": "Verify SSL certificates when downloading URLs (default: true)",
                     "required": False,
                     "selector": {"boolean": {}},
+                },
+                "text_mode": {
+                    "name": "Text Mode",
+                    "description": (
+                        "Text formatting mode: 'styled' enables markdown-like formatting "
+                        "(*italic*, **bold**, ~strikethrough~, `monospace`, ||spoiler||). "
+                        "Default: 'normal' (plain text, compatible with official integration)"
+                    ),
+                    "required": False,
+                    "example": "normal",
+                    "selector": {"select": {"options": ["normal", "styled"]}},
                 },
             },
         },
@@ -501,7 +514,11 @@ class SignalGatewayNotificationService(BaseNotificationService):
         return base64_attachments if base64_attachments else None
 
     async def _send_to_recipient(
-        self, recipient: str, message: str, base64_attachments: Optional[list[str]]
+        self,
+        recipient: str,
+        message: str,
+        base64_attachments: Optional[list[str]],
+        text_mode: str = "normal",
     ) -> None:
         """Send a message to a single recipient.
 
@@ -509,6 +526,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
             recipient: Target phone number or group ID
             message: Message to send
             base64_attachments: Optional list of base64 encoded attachments
+            text_mode: Text formatting mode (\"normal\" or \"styled\", default: \"normal\")
 
         Note:
             Logs errors but does not raise to allow sending to other recipients.
@@ -519,6 +537,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
                 target=recipient,
                 message=message,
                 base64_attachments=base64_attachments,
+                text_mode=text_mode,
             )
             _LOGGER.info("Notification sent successfully to %s", recipient)
             _LOGGER.debug("Send result: %s", result)
@@ -536,6 +555,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
         attachments: Optional[list[Any]] = None,
         urls: Optional[list[str]] = None,
         verify_ssl: bool = True,
+        text_mode: str = "normal",
         **kwargs: Any,
     ) -> None:
         """Send a notification via Signal.
@@ -547,6 +567,7 @@ class SignalGatewayNotificationService(BaseNotificationService):
             attachments: List of local file paths to attach
             urls: List of URLs to download and attach
             verify_ssl: Whether to verify SSL certificates when downloading URLs
+            text_mode: Text formatting mode (\"normal\" or \"styled\", default: \"normal\")
         """
         if not message:
             _LOGGER.error("Message is required")
@@ -567,4 +588,6 @@ class SignalGatewayNotificationService(BaseNotificationService):
 
         # Send to each recipient
         for recipient in targets:
-            await self._send_to_recipient(recipient, full_message, base64_attachments)
+            await self._send_to_recipient(
+                recipient, full_message, base64_attachments, text_mode
+            )

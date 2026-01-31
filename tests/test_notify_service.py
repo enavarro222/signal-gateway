@@ -460,3 +460,65 @@ async def test_process_attachments_exception_propagates(notification_service):
         await notification_service._process_attachments(
             attachments=["/nonexistent.txt"], urls=None, verify_ssl=True
         )
+
+
+# Test text_mode parameter
+@pytest.mark.asyncio
+async def test_send_message_with_styled_mode(notification_service, mock_signal_client):
+    """Test sending message with styled text mode."""
+    await notification_service.async_send_message(
+        message="**Bold** text",
+        target="+1234567890",
+        text_mode="styled",
+    )
+
+    mock_signal_client.send_message.assert_called_once()
+    call_kwargs = mock_signal_client.send_message.call_args.kwargs
+    assert call_kwargs["text_mode"] == "styled"
+    assert call_kwargs["message"] == "**Bold** text"
+
+
+@pytest.mark.asyncio
+async def test_send_message_with_normal_mode(notification_service, mock_signal_client):
+    """Test sending message with normal text mode."""
+    await notification_service.async_send_message(
+        message="Plain text",
+        target="+1234567890",
+        text_mode="normal",
+    )
+
+    mock_signal_client.send_message.assert_called_once()
+    call_kwargs = mock_signal_client.send_message.call_args.kwargs
+    assert call_kwargs["text_mode"] == "normal"
+
+
+@pytest.mark.asyncio
+async def test_send_message_default_normal(notification_service, mock_signal_client):
+    """Test that text_mode defaults to 'normal'."""
+    await notification_service.async_send_message(
+        message="Test message",
+        target="+1234567890",
+    )
+
+    mock_signal_client.send_message.assert_called_once()
+    call_kwargs = mock_signal_client.send_message.call_args.kwargs
+    assert call_kwargs["text_mode"] == "normal"
+
+
+@pytest.mark.asyncio
+async def test_send_message_with_formatted_content(
+    notification_service, mock_signal_client
+):
+    """Test sending message with various markdown-like formatting."""
+    formatted_message = "**Bold** *italic* ~strikethrough~ `monospace` ||spoiler||"
+
+    await notification_service.async_send_message(
+        message=formatted_message,
+        target="+1234567890",
+        text_mode="styled",
+    )
+
+    mock_signal_client.send_message.assert_called_once()
+    call_kwargs = mock_signal_client.send_message.call_args.kwargs
+    assert call_kwargs["message"] == formatted_message
+    assert call_kwargs["text_mode"] == "styled"

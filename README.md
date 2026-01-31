@@ -156,6 +156,40 @@ data:
   message: "This goes to default recipients"
 ```
 
+### Text Formatting
+
+Signal Gateway supports **styled text formatting** (similar to Markdown) when explicitly enabled:
+
+**Formatting syntax** (requires `text_mode: "styled"`):
+- `*text*` → *italic text*
+- `**text**` → **bold text**
+- `~text~` → ~~strikethrough text~~
+- `` `text` `` → `monospace text`
+- `||text||` → spoiler text (hidden until clicked)
+
+**Example with formatted text:**
+```yaml
+service: notify.signal
+data:
+  message: |
+    **Alert!** Temperature is *above* threshold.
+    Current value: `25.5°C`
+    ~Old value: 20°C~
+  target: "+33612345678"
+  text_mode: "styled"  # Enable formatting
+```
+
+**Default behavior** (plain text mode):
+```yaml
+service: notify.signal
+data:
+  message: "**This will be sent as-is, not bold**"
+  target: "+33612345678"
+  # text_mode defaults to "normal" for compatibility with official integration
+```
+
+> **Note:** The default `text_mode` is `"normal"` (plain text) for compatibility with the official Signal Messenger integration. Set `text_mode: "styled"` to enable markdown-like formatting.
+
 ### Receive Messages (Event Automation)
 
 When WebSocket listener is enabled, incoming messages trigger `signal_received` events:
