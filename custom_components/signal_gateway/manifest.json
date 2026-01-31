@@ -9,6 +9,6 @@
   "issues": "https://github.com/enavarro222/signal-gateway/issues",
   "requirements": [],
   "version": "0.1.0",
-  "homeassistant": "2024.1.0",
+  "homeassistant": "2024.12.0",
   "integration_type": "service"
 }
