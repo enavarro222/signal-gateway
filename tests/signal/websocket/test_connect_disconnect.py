@@ -47,7 +47,7 @@ async def test_disconnect_closes_websocket_and_task(monkeypatch, mock_session):
 @pytest.mark.asyncio
 async def test_disconnect_task_timeout(monkeypatch, caplog, mock_session):
     """
-    Test that disconnect() cancels the task if it does not finish in time (timeout), and logs a warning.
+    Test that disconnect() cancels the task immediately and properly cleans up.
     """
     listener = SignalWebSocketListener(
         api_url="http://localhost:8080",
@@ -55,12 +55,12 @@ async def test_disconnect_task_timeout(monkeypatch, caplog, mock_session):
         session=mock_session,
     )
     listener._running = True
-    # Simulate a slow task that will timeout
-    listener._task = asyncio.create_task(asyncio.sleep(10))
-    caplog.set_level("WARNING")
+    # Simulate a slow task
+    task = asyncio.create_task(asyncio.sleep(10))
+    listener._task = task
+
     await listener.disconnect()
-    # The task.cancel should be called (warning is logged)
-    assert any(
-        "WebSocket listener task did not complete in time" in r.message
-        for r in caplog.records
-    )
+
+    # The task should be cancelled and cleaned up
+    assert listener._task is None
+    assert task.cancelled()
