@@ -1,5 +1,12 @@
 # Signal Gateway
 
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/enavarro222/signal-gateway/ci.yml?branch=main&style=flat-square&label=tests)](https://github.com/enavarro222/signal-gateway/actions)
+[![codecov](https://img.shields.io/codecov/c/github/enavarro222/signal-gateway?style=flat-square)](https://codecov.io/gh/enavarro222/signal-gateway)
+[![License](https://img.shields.io/github/license/enavarro222/signal-gateway?style=flat-square)](LICENSE)
+[![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.12+-41BDF5.svg?style=flat-square)](https://www.home-assistant.io/)
+[![Python](https://img.shields.io/badge/Python-3.13+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+
 Signal Gateway is a custom integration that provides an alternative for integrating Signal with Home Assistant.
 The main difference with the official [Signal Messenger](https://www.home-assistant.io/integrations/signal_messenger/) integration
 is the ability to receive messages from Signal Messenger REST API in real time using WebSockets.
