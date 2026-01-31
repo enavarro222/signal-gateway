@@ -50,12 +50,14 @@ If you're replacing the official [Signal Messenger](https://www.home-assistant.i
 
 1. **Remove the official integration** from your `configuration.yaml`:
    ```yaml
-   # Remove or comment out these lines:
-   # signal_messenger:
-   #   url: "http://127.0.0.1:8080"
-   #   number: "+33612345678"
-   #   recipients:
-   #     - "+33687654321"
+   # Remove or comment out these lines in notify section:
+   notify:
+   # - name: signal
+  #    platform: signal_messenger
+  #    url: "http://127.0.0.1:8080"
+  #    number: "+33612345678"
+  #    recipients:
+  #      - "+33687654321"
    ```
 
 2. **Restart Home Assistant** to unload the official integration
