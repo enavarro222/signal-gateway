@@ -28,6 +28,7 @@ class SignalHTTPClient:  # pylint: disable=too-few-public-methods
         target: str,
         message: str,
         base64_attachments: Optional[list[str]] = None,
+        text_mode: str = "normal",
     ) -> dict[str, Any]:
         """Send a message via Signal.
 
@@ -35,6 +36,7 @@ class SignalHTTPClient:  # pylint: disable=too-few-public-methods
             target: Phone number or group ID to send to
             message: Message text to send
             base64_attachments: Optional list of base64 encoded attachments
+            text_mode: Text formatting mode ("normal" or "styled", default: "normal")
 
         Returns:
             Response from the API
@@ -45,6 +47,7 @@ class SignalHTTPClient:  # pylint: disable=too-few-public-methods
             ],
             "message": message,
             "number": self.phone_number,
+            "text_mode": text_mode,
         }
 
         if base64_attachments:

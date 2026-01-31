@@ -31,6 +31,7 @@ class SignalClient:
         target: str,
         message: str,
         base64_attachments: Optional[list[str]] = None,
+        text_mode: str = "normal",
     ) -> dict[str, Any]:
         """Send a message via Signal.
 
@@ -38,11 +39,14 @@ class SignalClient:
             target: Phone number or group ID to send to
             message: Message text to send
             base64_attachments: Optional list of base64 encoded attachments
+            text_mode: Text formatting mode ("normal" or "styled", default: "normal")
 
         Returns:
             Response from the API
         """
-        return await self._http_client.send_message(target, message, base64_attachments)
+        return await self._http_client.send_message(
+            target, message, base64_attachments, text_mode
+        )
 
     def set_message_handler(self, handler: Callable[[dict[str, Any]], Any]) -> None:
         """Set the callback handler for incoming WebSocket messages.
