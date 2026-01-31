@@ -48,48 +48,61 @@ class SignalWebSocketListener:
         self._running = False
 
         if self._task:
+            self._task.cancel()
             try:
-                await asyncio.wait_for(self._task, timeout=5)
-            except asyncio.TimeoutError:
-                _LOGGER.warning("WebSocket listener task did not complete in time")
-                self._task.cancel()
+                await self._task
             except asyncio.CancelledError:
                 pass
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.error("Error while disconnecting WebSocket: %s", err)
+            finally:
+                self._task = None
 
     async def _listen(self) -> None:
         """Listen for messages from the WebSocket."""
         ws_url = f"{self.api_url.replace('http', 'ws')}/v1/receive/{self.phone_number}"
         retry_count = 0
 
-        while self._running:
-            try:
-                await self._connect_and_listen(ws_url)
-                retry_count = 0  # Reset retry count on successful connection
-            except Exception as err:  # pylint: disable=broad-except
-                if self._running:
-                    retry_count += 1
-                    if retry_count > self.max_retries:
-                        _LOGGER.error(
-                            "Failed to connect to Signal WebSocket after %d retries: %s",
+        try:
+            while self._running:
+                try:
+                    await self._connect_and_listen(ws_url)
+                    retry_count = 0  # Reset retry count on successful connection
+                except asyncio.CancelledError:
+                    # Task was cancelled, exit cleanly
+                    _LOGGER.info("WebSocket listener task cancelled")
+                    raise
+                except Exception as err:  # pylint: disable=broad-except
+                    if self._running:
+                        retry_count += 1
+                        if retry_count > self.max_retries:
+                            _LOGGER.error(
+                                "Failed to connect to Signal WebSocket after %d retries: %s",
+                                self.max_retries,
+                                err,
+                            )
+                            self._running = False
+                            break
+
+                        _LOGGER.warning(
+                            "Failed to connect to Signal WebSocket (attempt %d/%d): %s. "
+                            "Retrying in %d seconds...",
+                            retry_count,
                             self.max_retries,
                             err,
+                            self.retry_delay,
                         )
-                        self._running = False
+                        try:
+                            await asyncio.sleep(self.retry_delay)
+                        except asyncio.CancelledError:
+                            _LOGGER.info(
+                                "WebSocket listener task cancelled during retry delay"
+                            )
+                            raise
+                    else:
                         break
-
-                    _LOGGER.warning(
-                        "Failed to connect to Signal WebSocket (attempt %d/%d): %s. "
-                        "Retrying in %d seconds...",
-                        retry_count,
-                        self.max_retries,
-                        err,
-                        self.retry_delay,
-                    )
-                    await asyncio.sleep(self.retry_delay)
-                else:
-                    break
-
-        _LOGGER.info("WebSocket listener stopped")
+        finally:
+            _LOGGER.info("WebSocket listener stopped")
 
     async def _connect_and_listen(self, ws_url: str) -> None:
         """Connect to WebSocket and listen for messages."""
