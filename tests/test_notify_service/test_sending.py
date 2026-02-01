@@ -3,6 +3,7 @@
 import os
 import tempfile
 import pytest
+from unittest.mock import MagicMock
 
 
 # Test _send_to_recipient
@@ -186,3 +187,48 @@ async def test_send_message_with_formatted_content(
     call_kwargs = mock_signal_client.send_message.call_args.kwargs
     assert call_kwargs["message"] == formatted_message
     assert call_kwargs["text_mode"] == "styled"
+
+
+# Test service call handler with nested data parameter
+@pytest.mark.asyncio
+async def test_service_handler_extracts_nested_data(mock_hass, mock_signal_client):
+    """Test that service handler properly extracts parameters from nested 'data' dict."""
+    from custom_components.signal_gateway.const import DOMAIN
+    from custom_components.signal_gateway.notify import async_setup_entry
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_id"
+    mock_hass.data[DOMAIN] = {
+        "test_id": {
+            "client": mock_signal_client,
+            "default_recipients": [],
+            "service_name": "test_signal",
+        }
+    }
+
+    # Setup the service
+    await async_setup_entry(mock_hass, mock_entry, None)
+
+    # Get the registered handler
+    assert mock_hass.services.async_register.called
+    handler = mock_hass.services.async_register.call_args[0][2]
+
+    # Create a mock call with nested data parameter (matches official integration)
+    mock_call = MagicMock()
+    mock_call.data = {
+        "message": "Test message",
+        "target": "+1234567890",
+        "data": {
+            "text_mode": "styled",
+        },
+    }
+
+    # Call the handler
+    await handler(mock_call)
+
+    # Verify the client was called with correct parameters extracted from nested data
+    mock_signal_client.send_message.assert_called_once()
+    call_kwargs = mock_signal_client.send_message.call_args.kwargs
+    assert call_kwargs["text_mode"] == "styled"
+    assert call_kwargs["message"] == "Test message"
+    assert call_kwargs["target"] == "+1234567890"
