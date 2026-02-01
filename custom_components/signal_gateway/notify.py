@@ -64,14 +64,16 @@ async def async_setup_entry(
             call.data.get("target"),
             call.data.get("message", "")[:50],
         )
+        # Extract nested data parameters (matches official signal_messenger integration)
+        data_params = call.data.get("data", {})
         await service.async_send_message(
             message=call.data.get("message"),
             title=call.data.get("title"),
             target=call.data.get("target"),
-            attachments=call.data.get("attachments"),
-            urls=call.data.get("urls"),
-            verify_ssl=call.data.get("verify_ssl", True),
-            text_mode=call.data.get("text_mode", "normal"),
+            attachments=data_params.get("attachments"),
+            urls=data_params.get("urls"),
+            verify_ssl=data_params.get("verify_ssl", True),
+            text_mode=data_params.get("text_mode", "normal"),
         )
 
     # Get the service name from the config entry
@@ -91,10 +93,14 @@ async def async_setup_entry(
                 vol.Required("message"): cv.string,
                 vol.Optional("title"): cv.string,
                 vol.Optional("target"): vol.Any(cv.string, [cv.string]),
-                vol.Optional("attachments"): [cv.string],
-                vol.Optional("urls"): [cv.string],
-                vol.Optional("verify_ssl"): cv.boolean,
-                vol.Optional("text_mode"): vol.In(["normal", "styled"]),
+                vol.Optional("data"): vol.Schema(
+                    {
+                        vol.Optional("attachments"): [cv.string],
+                        vol.Optional("urls"): [cv.string],
+                        vol.Optional("verify_ssl"): cv.boolean,
+                        vol.Optional("text_mode"): vol.In(["normal", "styled"]),
+                    }
+                ),
             }
         ),
     )
@@ -133,36 +139,38 @@ async def async_setup_entry(
                     "example": "+1234567890",
                     "selector": {"text": {}},
                 },
-                "attachments": {
-                    "name": "Attachments",
-                    "description": "List of local file paths to attach to the message",
+                "data": {
+                    "name": "Data",
+                    "description": "Additional data for the notification",
                     "required": False,
-                    "example": ["/config/www/camera_snapshot.jpg"],
-                    "selector": {"object": {}},
-                },
-                "urls": {
-                    "name": "URLs",
-                    "description": "List of URLs to download and attach to the message",
-                    "required": False,
-                    "example": ["https://example.com/image.jpg"],
-                    "selector": {"object": {}},
-                },
-                "verify_ssl": {
-                    "name": "Verify SSL",
-                    "description": "Verify SSL certificates when downloading URLs (default: true)",
-                    "required": False,
-                    "selector": {"boolean": {}},
-                },
-                "text_mode": {
-                    "name": "Text Mode",
-                    "description": (
-                        "Text formatting mode: 'styled' enables markdown-like formatting "
-                        "(*italic*, **bold**, ~strikethrough~, `monospace`, ||spoiler||). "
-                        "Default: 'normal' (plain text, compatible with official integration)"
-                    ),
-                    "required": False,
-                    "example": "normal",
-                    "selector": {"select": {"options": ["normal", "styled"]}},
+                    "advanced": False,
+                    "selector": {
+                        "object": {
+                            "options": {
+                                "attachments": {
+                                    "name": "Attachments",
+                                    "description": "List of local file paths to attach",
+                                    "example": ["/config/www/camera_snapshot.jpg"],
+                                },
+                                "urls": {
+                                    "name": "URLs",
+                                    "description": "List of URLs to download and attach",
+                                    "example": ["https://example.com/image.jpg"],
+                                },
+                                "verify_ssl": {
+                                    "name": "Verify SSL",
+                                    "description": "Verify SSL certificates (default: true)",
+                                },
+                                "text_mode": {
+                                    "name": "Text Mode",
+                                    "description": (
+                                        "Format mode: 'normal' or 'styled' "
+                                        "(default: normal)"
+                                    ),
+                                },
+                            }
+                        }
+                    },
                 },
             },
         },

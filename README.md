@@ -121,9 +121,10 @@ service: notify.signal
 data:
   message: "Check this camera snapshot"
   target: "+33612345678"
-  attachments:
-    - "/config/www/camera_snapshot.jpg"
-    - "/config/www/photo.png"
+  data:
+    attachments:
+      - "/config/www/camera_snapshot.jpg"
+      - "/config/www/photo.png"
 ```
 
 **With URL attachments:**
@@ -132,9 +133,10 @@ service: notify.signal
 data:
   message: "Weather map"
   target: "+33612345678"
-  urls:
-    - "https://example.com/weather_map.png"
-  verify_ssl: true  # Optional, default is true
+  data:
+    urls:
+      - "https://example.com/weather_map.png"
+    verify_ssl: true  # Optional, default is true
 ```
 
 **Combining local files and URLs:**
@@ -143,10 +145,11 @@ service: notify.signal
 data:
   message: "Multiple attachments"
   target: "+33612345678"
-  attachments:
-    - "/config/www/local_file.jpg"
-  urls:
-    - "https://example.com/remote_image.png"
+  data:
+    attachments:
+      - "/config/www/local_file.jpg"
+    urls:
+      - "https://example.com/remote_image.png"
 ```
 
 **Using default recipients** (if configured):
@@ -176,7 +179,8 @@ data:
     Current value: `25.5°C`
     ~Old value: 20°C~
   target: "+33612345678"
-  text_mode: "styled"  # Enable formatting
+  data:
+    text_mode: "styled"  # Enable formatting
 ```
 
 **Default behavior** (plain text mode):
