@@ -11,7 +11,7 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 
-class SignalHTTPClient:  # pylint: disable=too-few-public-methods
+class SignalHTTPClient:
     """HTTP client for Signal-cli-rest-api.
 
     See https://github.com/bbernhard/signal-cli-rest-api
