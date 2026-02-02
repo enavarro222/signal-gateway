@@ -13,11 +13,11 @@ is the ability to receive messages from Signal Messenger REST API in real time u
 
 ## Features
 
-✨ **Notification Service** - Send Signal messages from Home Assistant (asynchronous REST API)
-📱 **Message Reception** - WebSocket listener to capture incoming messages
-🔄 **Home Assistant Events** - Automatic relay to `signal_received` events
-⚡ **Asynchronous** - Uses `aiohttp` for optimal performance
-🚀 **No External Dependencies** - No additional Python packages required
+- ✨ **Notification Service** - Send Signal messages from Home Assistant (asynchronous REST API)
+- 📱 **Message Reception** - WebSocket listener to capture incoming messages
+- 🔄 **Home Assistant Events** - Automatic relay to `signal_received` events
+- ⚡ **Asynchronous** - Uses `aiohttp` for optimal performance
+- 🚀 **No External Dependencies** - No additional Python packages required
 
 ## Installation
 
@@ -53,11 +53,11 @@ If you're replacing the official [Signal Messenger](https://www.home-assistant.i
    # Remove or comment out these lines in notify section:
    notify:
    # - name: signal
-  #    platform: signal_messenger
-  #    url: "http://127.0.0.1:8080"
-  #    number: "+33612345678"
-  #    recipients:
-  #      - "+33687654321"
+   #    platform: signal_messenger
+   #    url: "http://127.0.0.1:8080"
+   #    number: "+33612345678"
+   #    recipients:
+   #      - "+33687654321"
    ```
 
 2. **Restart Home Assistant** to unload the official integration
