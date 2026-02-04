@@ -66,7 +66,7 @@ async def test_unload_entry_not_exists(mock_hass, mock_entry_minimal):
 
 @pytest.mark.asyncio
 async def test_unload_entry_platform_fails(mock_hass, mock_entry_minimal):
-    """Test unload when platform unload fails."""
+    """Test unload when platform unload fails - continues cleanup anyway."""
     mock_client = MagicMock()
     mock_client.stop_listening = AsyncMock()
 
@@ -83,10 +83,11 @@ async def test_unload_entry_platform_fails(mock_hass, mock_entry_minimal):
 
         result = await async_unload_entry(mock_hass, mock_entry_minimal)
 
-        assert result is False
-        # Entry should not be removed if unload fails
-        assert "test_entry_id" in mock_hass.data[DOMAIN]
-        # WebSocket should NOT be stopped if unload failed
-        mock_client.stop_listening.assert_not_called()
-        # Notify service should NOT be unloaded if platform unload failed
-        mock_unload.assert_not_called()
+        # Now returns True even if platform unload fails, to continue cleanup
+        assert result is True
+        # Entry should be removed even if unload fails partially
+        assert "test_entry_id" not in mock_hass.data[DOMAIN]
+        # WebSocket should be stopped to ensure cleanup
+        mock_client.stop_listening.assert_called_once()
+        # Notify service should be unloaded before platform unload
+        mock_unload.assert_called_once()
