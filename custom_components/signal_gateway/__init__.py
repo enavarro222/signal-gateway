@@ -24,7 +24,12 @@ from .notify import async_unload_notify_service
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.NOTIFY]
+PLATFORMS: list[Platform] = [
+    Platform.NOTIFY,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.TEXT,
+]
 
 
 def parse_recipients(recipients_str: str) -> list[str]:
@@ -143,24 +148,23 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     service_name = data.get("service_name")
     _LOGGER.info("Unload Signal Gateway entry '%s'", service_name)
 
-    # Try to unload the notification platform first
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # Manually unload the notify service first (this must be done before platform unload)
+    await async_unload_notify_service(hass, entry)
 
-    # Only proceed with cleanup if unload succeeded
+    # Try to unload the platforms
+    # Note: We continue cleanup even if platform unload fails partially
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if not unload_ok:
-        _LOGGER.error(
-            "Failed to unload platforms for Signal Gateway entry '%s'", service_name
+        _LOGGER.warning(
+            "Some platforms failed to unload for Signal Gateway entry '%s', continuing cleanup",
+            service_name,
         )
-        return False
 
     # Stop the WebSocket listener
     client = data.get("client")
     if client:
         await client.stop_listening()
         _LOGGER.info("Signal WebSocket listener stopped")
-
-    # Manually unload the notify service (this is not done by platform unload)
-    await async_unload_notify_service(hass, entry)
 
     # Remove the entry data
     hass.data[DOMAIN].pop(entry.entry_id, None)

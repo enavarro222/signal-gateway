@@ -15,6 +15,16 @@
           "recipients": "Numéros de téléphone à qui envoyer par défaut lorsqu'aucune cible n'est spécifiée. Entrez un numéro par ligne avec l'indicatif pays, par ex. +1234567890"
         }
       },
+      "discovery": {
+        "title": "Découverte des appareils",
+        "description": "Sélectionnez les contacts et les groupes à ajouter en tant qu'appareils. {device_count} appareils trouvés.",
+        "data": {
+          "approved_devices": "Sélectionner les appareils à ajouter"
+        },
+        "data_description": {
+          "approved_devices": "Sélectionnez les contacts et groupes que vous souhaitez ajouter en tant qu'appareils dans Home Assistant"
+        }
+      },
       "init": {
         "title": "Options de Signal Gateway",
         "description": "Configurer les options de Signal Gateway",
@@ -33,6 +43,7 @@
     "error": {
       "invalid_url": "URL de l'API invalide",
       "duplicate_service_name": "Une passerelle Signal avec ce nom existe déjà. Veuillez choisir un nom différent.",
+      "cannot_connect": "Échec de la connexion à l'API Signal pour découvrir les appareils",
       "unknown": "Une erreur inconnue s'est produite"
     },
     "abort": {
