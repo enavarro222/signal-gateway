@@ -110,10 +110,10 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
             data.get("entry_id") == self._entry_id
             and data.get("contact_number") == self._contact.number
         ):
-            # Update the contact name
-            new_name = data.get("contact_name")
-            if new_name:
-                self._contact.name = new_name
+            # Update with the entire contact object
+            updated_contact = data.get("contact")
+            if updated_contact:
+                self._contact = updated_contact
                 self._attr_native_value = self._contact.display_name
                 self.async_write_ha_state()
 
