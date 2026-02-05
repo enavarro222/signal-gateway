@@ -15,6 +15,8 @@ from .device import ContactDeviceMixin, GroupDeviceMixin
 from .signal import SignalClient
 from .signal.models import SignalContact, SignalGroup
 
+from .avatar_view import generate_avatar_token
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -78,6 +80,19 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
         self._attr_unique_id = f"{entry_id}_contact_{contact.number}_info"
         self._attr_native_value = contact.display_name
 
+    @property
+    def entity_picture(self) -> str | None:
+        """Return the entity picture to use for this contact."""
+        if self._contact.profile and self._contact.profile.has_avatar:
+            token, _ = generate_avatar_token(
+                self.hass, self._entry_id, self._contact.uuid
+            )
+            return (
+                f"/api/signal_gateway/{self._entry_id}/avatar/contact/"
+                f"{self._contact.uuid}?token={token}"
+            )
+        return None
+
     async def async_added_to_hass(self) -> None:
         """Register event listener when entity is added to hass."""
         await super().async_added_to_hass()
@@ -110,6 +125,12 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
             "uuid": self._contact.uuid,
             "type": "contact",
         }
+
+        # Avatar information
+        if self._contact.profile:
+            attrs["has_avatar"] = self._contact.profile.has_avatar
+            if self._contact.profile.has_avatar:
+                attrs["avatar_url"] = self.entity_picture
 
         if self._contact.name:
             attrs["name"] = self._contact.name
@@ -151,6 +172,19 @@ class SignalGroupInfoEntity(GroupDeviceMixin, SensorEntity):
         self._attr_unique_id = f"{entry_id}_group_{group.id}_info"
         self._update_group(group)
 
+    @property
+    def entity_picture(self) -> str | None:
+        """Return the entity picture to use for this group.
+
+        Groups always have avatars, so always return the URL.
+        If the avatar doesn't exist, the view will return 404.
+        """
+        token, _ = generate_avatar_token(self.hass, self._entry_id, self._group.id)
+        return (
+            f"/api/signal_gateway/{self._entry_id}/avatar/group/"
+            f"{self._group.id}?token={token}"
+        )
+
     def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
         """Update the group and native value.
 
@@ -176,6 +210,9 @@ class SignalGroupInfoEntity(GroupDeviceMixin, SensorEntity):
             "members": self._group.members,
             "admins": self._group.admins,
         }
+
+        # Avatar information (groups always have avatars)
+        attrs["avatar_url"] = self.entity_picture
 
         if self._group.description:
             attrs["description"] = self._group.description

@@ -22,6 +22,7 @@ from .const import (
 )
 from .signal import SignalClient
 from .notify import async_unload_notify_service
+from .avatar_view import setup_avatar_view
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
@@ -78,6 +79,10 @@ def parse_recipients(recipients_str: str) -> list[str]:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Signal Gateway from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Register avatar view once (only first entry)
+    if not hass.data[DOMAIN]:
+        setup_avatar_view(hass)
 
     api_url = str(entry.data.get(CONF_SIGNAL_CLI_REST_API_URL, ""))
     phone_number = str(entry.data.get(CONF_PHONE_NUMBER, ""))
