@@ -96,3 +96,14 @@ class SignalGroupIsWritingEntity(GroupDeviceMixin, BinarySensorEntity):
         self._attr_name = "Is Writing"
         self._attr_unique_id = f"{entry_id}_group_{group.id}_is_writing"
         self._attr_is_on = False  # Default to not writing
+
+    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
+        """Update the group object.
+
+        Args:
+            group: The updated group object
+            write_state: Whether to write the state to Home Assistant
+        """
+        self._group = group
+        if write_state:
+            self.async_write_ha_state()

@@ -133,8 +133,13 @@ async def test_setup_entry_websocket_message_handler(mock_hass, mock_entry):
         # Get the message handler that was registered
         handler = mock_client.set_message_handler.call_args[0][0]
 
-        # Call the handler with test data
-        test_data = {"sender": "+1234567890", "message": "Test message"}
+        # Call the handler with test data (proper Signal message structure)
+        test_data = {
+            "envelope": {
+                "source": "+1234567890",
+                "dataMessage": {"message": "Test message"},
+            }
+        }
         await handler(test_data)
 
         # Verify event was fired
