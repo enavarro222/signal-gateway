@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers import config_validation as cv
 
@@ -31,9 +32,12 @@ def validate_signal_gateway_input(
         ValueError: If the API URL is invalid
         DuplicateServiceNameError: If a duplicate service name is detected
     """
-    api_url = user_input.get(CONF_SIGNAL_CLI_REST_API_URL)
-    if not api_url or not api_url.startswith("http"):
-        raise ValueError("Invalid API URL")
+    # Validate URL using Home Assistant's built-in validator
+    try:
+        api_url = user_input.get(CONF_SIGNAL_CLI_REST_API_URL, "")
+        cv.url(api_url)  # Validates format and scheme (http/https)
+    except (vol.Invalid, vol.MultipleInvalid) as err:
+        raise ValueError(f"Invalid API URL: {err}") from err
 
     # Check for duplicate service names
     integration_name = user_input.get(CONF_NAME, DOMAIN)

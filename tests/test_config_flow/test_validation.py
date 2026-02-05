@@ -176,3 +176,88 @@ def test_validate_signal_gateway_input_https_url():
     }
 
     validate_signal_gateway_input(user_input, [])
+
+
+def test_validate_signal_gateway_input_url_with_port():
+    """Test validation accepts URL with port."""
+    user_input = {
+        CONF_NAME: "Test Gateway",
+        CONF_SIGNAL_CLI_REST_API_URL: "http://localhost:8080",
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    validate_signal_gateway_input(user_input, [])
+
+
+def test_validate_signal_gateway_input_url_with_path():
+    """Test validation accepts URL with path."""
+    user_input = {
+        CONF_NAME: "Test Gateway",
+        CONF_SIGNAL_CLI_REST_API_URL: "http://example.com/api/signal",
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    validate_signal_gateway_input(user_input, [])
+
+
+@pytest.mark.parametrize(
+    "invalid_url",
+    [
+        "ftp://example.com",
+        "file:///tmp",
+        "ssh://host",
+    ],
+)
+def test_validate_signal_gateway_input_invalid_scheme(invalid_url):
+    """Test validation rejects invalid URL schemes."""
+    user_input = {
+        CONF_NAME: "Test Gateway",
+        CONF_SIGNAL_CLI_REST_API_URL: invalid_url,
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    with pytest.raises(ValueError, match="Invalid API URL"):
+        validate_signal_gateway_input(user_input, [])
+
+
+@pytest.mark.parametrize(
+    "invalid_url",
+    [
+        "not a url",
+        "http://",
+        "://example.com",
+        "http:/example",
+    ],
+)
+def test_validate_signal_gateway_input_malformed_url(invalid_url):
+    """Test validation rejects malformed URLs."""
+    user_input = {
+        CONF_NAME: "Test Gateway",
+        CONF_SIGNAL_CLI_REST_API_URL: invalid_url,
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    with pytest.raises(ValueError):
+        validate_signal_gateway_input(user_input, [])
+
+
+def test_validate_signal_gateway_input_whitespace_in_name():
+    """Test validation handles names with whitespace."""
+    user_input = {
+        CONF_NAME: "  Test Gateway  ",  # Leading/trailing spaces
+        CONF_SIGNAL_CLI_REST_API_URL: "http://localhost:8080",
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    validate_signal_gateway_input(user_input, [])
+
+
+def test_validate_signal_gateway_input_special_chars_in_name():
+    """Test validation handles special characters in name."""
+    user_input = {
+        CONF_NAME: "Test-Gateway_2024!",
+        CONF_SIGNAL_CLI_REST_API_URL: "http://localhost:8080",
+        CONF_PHONE_NUMBER: "+1234567890",
+    }
+
+    validate_signal_gateway_input(user_input, [])

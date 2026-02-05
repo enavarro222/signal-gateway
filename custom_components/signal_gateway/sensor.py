@@ -85,7 +85,11 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
     @property
     def entity_picture(self) -> str | None:
         """Return the entity picture to use for this contact."""
-        if self._contact.profile and self._contact.profile.has_avatar:
+        if (
+            self.hass is not None
+            and self._contact.profile
+            and self._contact.profile.has_avatar
+        ):
             token, _ = generate_avatar_token(
                 self.hass, self._entry_id, self._contact.uuid
             )
@@ -193,6 +197,9 @@ class SignalGroupInfoEntity(GroupDeviceMixin, SensorEntity):
         Groups always have avatars, so always return the URL.
         If the avatar doesn't exist, the view will return 404.
         """
+        if self.hass is None:
+            return None
+
         token, _ = generate_avatar_token(self.hass, self._entry_id, self._group.id)
         return (
             f"/api/signal_gateway/{self._entry_id}/avatar/group/"

@@ -41,7 +41,7 @@ async def test_user_flow_success(valid_user_input, mock_setup_entry):
         result = await flow.async_step_user(user_input=valid_user_input)
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "My Signal"
+    assert result["title"] == "Test Gateway"
     # Data should include approved_devices from discovery step
     assert "approved_devices" in result["data"]
     assert result["data"]["name"] == valid_user_input["name"]
@@ -95,7 +95,7 @@ async def test_user_flow_duplicate_service_name(valid_user_input):
         minor_version=1,
         domain=DOMAIN,
         title="My Signal",
-        data={"name": "My Signal"},  # Same as valid_user_input
+        data={"name": "Test Gateway"},  # Same as valid_user_input
         source="user",
         entry_id="existing_entry_id",
         unique_id="existing_unique_id",
@@ -119,7 +119,7 @@ async def test_user_flow_unknown_error(valid_user_input):
 
     # Mock validation to raise unexpected error
     with patch(
-        "custom_components.signal_gateway.config_flow.flows.validate_signal_gateway_input",
+        "custom_components.signal_gateway.config_flow.config_flow.validate_signal_gateway_input",
         side_effect=Exception("Unexpected error"),
     ):
         result = await flow.async_step_user(user_input=valid_user_input)

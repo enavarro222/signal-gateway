@@ -186,4 +186,6 @@ def setup_avatar_view(hass: HomeAssistant) -> None:
     Args:
         hass: Home Assistant instance
     """
-    hass.http.register_view(SignalAvatarView())
+    # Only register if HTTP component is available (not in tests)
+    if hass.http is not None:
+        hass.http.register_view(SignalAvatarView())

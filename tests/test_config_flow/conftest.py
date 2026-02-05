@@ -35,15 +35,3 @@ def mock_config_entry():
         options={},
         subentries_data={},
     )
-
-
-@pytest.fixture
-def valid_user_input():
-    """Create valid user input data."""
-    return {
-        CONF_NAME: "My Signal",
-        CONF_SIGNAL_CLI_REST_API_URL: "http://192.168.1.100:8080",
-        CONF_PHONE_NUMBER: "+1234567890",
-        CONF_WEBSOCKET_ENABLED: True,
-        CONF_RECIPIENTS: "+9876543210, +5551234567",
-    }

@@ -9,6 +9,11 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN
+from .device_helpers import (
+    build_contact_device_identifier,
+    build_group_device_identifier,
+    build_group_internal_identifier,
+)
 from .signal import SignalClient
 from .signal.models import SignalContact, SignalGroup
 
@@ -69,7 +74,7 @@ class ContactDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-
 
     def _get_device_identifier(self) -> str:
         """Get the unique device identifier for this contact."""
-        return f"{self._entry_id}_contact_{self._contact.number}"
+        return build_contact_device_identifier(self._entry_id, self._contact.number)
 
     def _get_device_name(self) -> str:
         """Get the device display name for this contact."""
@@ -96,9 +101,30 @@ class GroupDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-me
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information to link entities.
+
+        For groups, we add both the API id and internal_id as identifiers
+        so we can match websocket messages (which use internal_id).
+        """
+        return DeviceInfo(
+            identifiers={
+                (DOMAIN, self._get_device_identifier()),
+                (DOMAIN, self._get_internal_identifier()),
+            },
+            name=self._get_device_name(),
+            manufacturer="Signal Messenger",
+            model=self._get_device_model(),
+        )
+
     def _get_device_identifier(self) -> str:
         """Get the unique device identifier for this group."""
-        return f"{self._entry_id}_group_{self._group.id}"
+        return build_group_device_identifier(self._entry_id, self._group.id)
+
+    def _get_internal_identifier(self) -> str:
+        """Get the "internal" unique device identifier for this group."""
+        return build_group_internal_identifier(self._entry_id, self._group.internal_id)
 
     def _get_device_name(self) -> str:
         """Get the device display name for this group."""
