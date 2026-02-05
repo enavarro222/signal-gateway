@@ -69,6 +69,9 @@ def mock_hass():
     hass.services.async_register = MagicMock()
     hass.config.path.return_value = "secret_path"
     hass.http = MagicMock()
+    hass.bus = MagicMock()
+    hass.bus.async_fire = MagicMock()
+    hass.bus.async_listen = MagicMock()
     return hass
 
 
