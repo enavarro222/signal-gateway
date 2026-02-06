@@ -72,7 +72,8 @@
   },
   "device_automation": {
     "trigger_type": {
-      "message_received": "Message reçu"
+      "message_received": "Message reçu",
+      "typing_indicator": "Le contact est en train d'écrire"
     },
     "action_type": {
       "send_message": "Envoyer un message"

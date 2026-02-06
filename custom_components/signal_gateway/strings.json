@@ -72,7 +72,8 @@
   },
   "device_automation": {
     "trigger_type": {
-      "message_received": "Message received"
+      "message_received": "Message received",
+      "typing_indicator": "Contact is typing"
     },
     "action_type": {
       "send_message": "Send a message"
