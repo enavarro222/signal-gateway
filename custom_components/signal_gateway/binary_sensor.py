@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_call_later
 
-from .const import CONF_APPROVED_DEVICES, DOMAIN
+from .const import CONF_APPROVED_DEVICES, DOMAIN, EVENT_TYPING_INDICATOR
 from .device import ContactDeviceMixin, GroupDeviceMixin
 from .signal import SignalClient
 from .signal.models import SignalContact, SignalGroup
@@ -66,6 +69,7 @@ class SignalContactIsWritingEntity(ContactDeviceMixin, BinarySensorEntity):
     """Binary sensor showing if a contact is writing."""
 
     _attr_icon = "mdi:pencil"
+    _typing_timeout_seconds = 10  # Reset to "not typing" after this many seconds
 
     def __init__(
         self,
@@ -78,6 +82,101 @@ class SignalContactIsWritingEntity(ContactDeviceMixin, BinarySensorEntity):
         self._attr_name = "Is Writing"
         self._attr_unique_id = f"{entry_id}_contact_{contact.number}_is_writing"
         self._attr_is_on = False  # Default to not writing
+        self._unsub_typing_event: Callable[[], None] | None = None
+        self._reset_timer: Callable[[], None] | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity is added to hass."""
+        await super().async_added_to_hass()
+
+        # Subscribe to typing indicator events
+        self._unsub_typing_event = self.hass.bus.async_listen(
+            f"{DOMAIN}_{EVENT_TYPING_INDICATOR}",
+            self._handle_typing_event,
+        )
+        _LOGGER.debug(
+            "Contact %s subscribed to typing indicator events",
+            self._contact.number,
+        )
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Run when entity will be removed from hass."""
+        await super().async_will_remove_from_hass()
+
+        # Unsubscribe from typing events
+        if self._unsub_typing_event:
+            self._unsub_typing_event()
+            self._unsub_typing_event = None
+
+        # Cancel any pending reset timer
+        if self._reset_timer:
+            self._reset_timer()
+            self._reset_timer = None
+
+    @callback
+    def _handle_typing_event(self, event: Event) -> None:
+        """Handle typing indicator event.
+
+        Args:
+            event: The typing indicator event
+        """
+        event_data = event.data
+
+        # Only handle events for this contact and this entry
+        if (
+            event_data.get("entry_id") != self._entry_id
+            or event_data.get("source") != self._contact.number
+        ):
+            return
+
+        action = event_data.get("action", "")
+
+        _LOGGER.debug(
+            "Contact %s typing indicator: %s",
+            self._contact.number,
+            action,
+        )
+
+        if action == "started":
+            # Contact started typing
+            self._attr_is_on = True
+            self.async_write_ha_state()
+
+            # Cancel any existing reset timer
+            if self._reset_timer:
+                self._reset_timer()
+
+            # Schedule automatic reset after timeout
+            self._reset_timer = async_call_later(
+                self.hass,
+                self._typing_timeout_seconds,
+                self._reset_typing_state,
+            )
+
+        elif action == "stopped":
+            # Contact stopped typing
+            self._attr_is_on = False
+            self.async_write_ha_state()
+
+            # Cancel any pending reset timer
+            if self._reset_timer:
+                self._reset_timer()
+                self._reset_timer = None
+
+    @callback
+    def _reset_typing_state(self, _now) -> None:
+        """Reset typing state after timeout.
+
+        Args:
+            _now: Current time (unused, required by async_call_later)
+        """
+        _LOGGER.debug(
+            "Contact %s typing indicator timed out, resetting state",
+            self._contact.number,
+        )
+        self._attr_is_on = False
+        self._reset_timer = None
+        self.async_write_ha_state()
 
 
 class SignalGroupIsWritingEntity(GroupDeviceMixin, BinarySensorEntity):

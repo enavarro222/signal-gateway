@@ -110,8 +110,8 @@ async def async_call_action_from_config(
 
     _LOGGER.debug(
         "Sending message to %s %s: %s",
-        device_info["type"],
-        device_info["identifier"],
+        device_info.type,
+        device_info.identifier,
         message,
     )
 

@@ -8,6 +8,7 @@ from homeassistant.core import Event, HomeAssistant
 
 from custom_components.signal_gateway.device_trigger import (
     TRIGGER_MESSAGE_RECEIVED,
+    TRIGGER_TYPING_INDICATOR,
     async_get_triggers,
     async_attach_trigger,
     async_get_trigger_capabilities,
@@ -40,7 +41,7 @@ def mock_group_device():
 
 @pytest.mark.asyncio
 async def test_async_get_triggers_for_contact(mock_contact_device):
-    """Test async_get_triggers returns message_received trigger for contact."""
+    """Test async_get_triggers returns triggers for contact."""
     hass = MagicMock(spec=HomeAssistant)
 
     with patch(
@@ -49,10 +50,15 @@ async def test_async_get_triggers_for_contact(mock_contact_device):
     ):
         triggers = await async_get_triggers(hass, "test_contact_device_id")
 
-    assert len(triggers) == 1
+    # Contacts should have both message_received and typing_indicator triggers
+    assert len(triggers) == 2
     assert triggers[0][CONF_PLATFORM] == "device"
     assert triggers[0][CONF_TYPE] == TRIGGER_MESSAGE_RECEIVED
     assert triggers[0][CONF_DEVICE_ID] == "test_contact_device_id"
+
+    assert triggers[1][CONF_PLATFORM] == "device"
+    assert triggers[1][CONF_TYPE] == TRIGGER_TYPING_INDICATOR
+    assert triggers[1][CONF_DEVICE_ID] == "test_contact_device_id"
 
 
 @pytest.mark.asyncio
@@ -368,3 +374,239 @@ async def test_async_get_trigger_capabilities():
     capabilities = await async_get_trigger_capabilities(hass, config)
 
     assert capabilities == {}
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_started(mock_hass_with_bus, mock_contact_device):
+    """Test handle_typing_event processes started typing indicator."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_contact_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_contact_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    # Verify listener was attached to typing indicator event
+    assert mock_hass_with_bus.bus.async_listen.called
+    event_type, handler = mock_hass_with_bus.bus.async_listen.call_args[0]
+    assert event_type == f"{DOMAIN}_typing_indicator"
+
+    # Simulate typing indicator started event
+    event_data = {
+        "entry_id": "test_entry",
+        "source": "+33612345678",
+        "source_uuid": "uuid-123",
+        "action": "started",
+        "timestamp": 1234567890,
+    }
+    event = Event(f"{DOMAIN}_typing_indicator", event_data)
+
+    await handler(event)
+
+    # Verify action was called with typing event data
+    assert action.called
+    trigger_data = action.call_args[0][0]
+    assert trigger_data["trigger"]["platform"] == "device"
+    assert (
+        trigger_data["trigger"]["description"] == "Typing indicator from Test Contact"
+    )
+    assert trigger_data["trigger"]["source"] == "+33612345678"
+    assert trigger_data["trigger"]["source_uuid"] == "uuid-123"
+    assert trigger_data["trigger"]["action"] == "started"
+    assert trigger_data["trigger"]["timestamp"] == 1234567890
+    assert trigger_data["trigger"]["event"] == event
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_stopped(mock_hass_with_bus, mock_contact_device):
+    """Test handle_typing_event processes stopped typing indicator."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_contact_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_contact_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    handler = mock_hass_with_bus.bus.async_listen.call_args[0][1]
+
+    # Simulate typing indicator stopped event
+    event_data = {
+        "entry_id": "test_entry",
+        "source": "+33612345678",
+        "source_uuid": "uuid-123",
+        "action": "stopped",
+        "timestamp": 1234567890,
+    }
+    event = Event(f"{DOMAIN}_typing_indicator", event_data)
+
+    await handler(event)
+
+    # Verify action was called
+    assert action.called
+    trigger_data = action.call_args[0][0]
+    assert trigger_data["trigger"]["action"] == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_wrong_contact(
+    mock_hass_with_bus, mock_contact_device
+):
+    """Test handle_typing_event ignores events from other contacts."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_contact_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_contact_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    handler = mock_hass_with_bus.bus.async_listen.call_args[0][1]
+
+    # Event from different contact
+    event_data = {
+        "entry_id": "test_entry",
+        "source": "+9999999999",  # Different contact
+        "source_uuid": "uuid-123",
+        "action": "started",
+        "timestamp": 1234567890,
+    }
+    event = Event(f"{DOMAIN}_typing_indicator", event_data)
+
+    await handler(event)
+
+    # Action should not be called
+    assert not action.called
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_wrong_entry_id(
+    mock_hass_with_bus, mock_contact_device
+):
+    """Test handle_typing_event ignores events from other entry_ids."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_contact_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_contact_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    handler = mock_hass_with_bus.bus.async_listen.call_args[0][1]
+
+    # Event from different entry
+    event_data = {
+        "entry_id": "different_entry",  # Different entry
+        "source": "+33612345678",
+        "source_uuid": "uuid-123",
+        "action": "started",
+        "timestamp": 1234567890,
+    }
+    event = Event(f"{DOMAIN}_typing_indicator", event_data)
+
+    await handler(event)
+
+    # Action should not be called
+    assert not action.called
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_for_group_fails(
+    mock_hass_with_bus, mock_group_device
+):
+    """Test typing indicator trigger not supported for groups."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_group_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_group_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    # Should return a no-op detach function since typing isn't supported for groups
+    assert callable(detach)
+    detach()  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_event_with_context(
+    mock_hass_with_bus, mock_contact_device
+):
+    """Test handle_typing_event passes event context to action."""
+    action = AsyncMock()
+    config = {
+        CONF_PLATFORM: "device",
+        CONF_DEVICE_ID: "test_contact_device_id",
+        CONF_TYPE: TRIGGER_TYPING_INDICATOR,
+    }
+
+    device_registry = MagicMock()
+    device_registry.async_get.return_value = mock_contact_device
+
+    with patch(
+        "custom_components.signal_gateway.device_trigger.dr.async_get",
+        return_value=device_registry,
+    ):
+        detach = await async_attach_trigger(mock_hass_with_bus, config, action, {})
+
+    handler = mock_hass_with_bus.bus.async_listen.call_args[0][1]
+
+    # Create event with context
+    from homeassistant.core import Context
+
+    context = Context(user_id="test_user")
+    event_data = {
+        "entry_id": "test_entry",
+        "source": "+33612345678",
+        "source_uuid": "uuid-123",
+        "action": "started",
+        "timestamp": 1234567890,
+    }
+    event = Event(f"{DOMAIN}_typing_indicator", event_data, context=context)
+
+    await handler(event)
+
+    # Verify action was called with context
+    assert action.called
+    assert action.call_args[1]["context"] == context
