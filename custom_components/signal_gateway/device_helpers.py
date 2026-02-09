@@ -17,7 +17,7 @@ GROUP_INTERNAL_ID_PATTERN = re.compile(r"^.+_group-internal_(.+)$")
 
 
 @dataclass
-class DeviceInfo:
+class SignalDeviceInfo:
     """Structured information about a Signal Gateway device extracted from the device registry."""
 
     entry_id: str
@@ -91,7 +91,7 @@ async def async_get_signal_device(
     return device
 
 
-def extract_device_info(device: dr.DeviceEntry) -> DeviceInfo | None:
+def extract_device_info(device: dr.DeviceEntry) -> SignalDeviceInfo | None:
     """Extract Signal Gateway device information from device registry entry.
 
     Args:
@@ -121,7 +121,7 @@ def extract_device_info(device: dr.DeviceEntry) -> DeviceInfo | None:
         and "type" in device_info
         and "identifier" in device_info
     ):
-        return DeviceInfo(
+        return SignalDeviceInfo(
             name=device.name,
             entry_id=device_info["entry_id"],
             type=device_info["type"],

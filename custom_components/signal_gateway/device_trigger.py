@@ -14,7 +14,11 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, EVENT_SIGNAL_RECEIVED, EVENT_TYPING_INDICATOR
-from .device_helpers import async_get_signal_device, extract_device_info, DeviceInfo
+from .device_helpers import (
+    async_get_signal_device,
+    extract_device_info,
+    SignalDeviceInfo,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +42,7 @@ class DeviceEventHandler:
         self,
         action: Callable,
         config: ConfigType,
-        device_info: DeviceInfo,
+        device_info: SignalDeviceInfo,
     ) -> None:
         """Initialize the device event handler.
 
@@ -49,7 +53,7 @@ class DeviceEventHandler:
         """
         self._action = action
         self._config = config
-        self._device_info: DeviceInfo = device_info
+        self._device_info: SignalDeviceInfo = device_info
 
     async def handle_typing_event(self, event: Event) -> None:
         """Handle typing indicator event for this device.
@@ -74,8 +78,7 @@ class DeviceEventHandler:
                 {
                     "trigger": {
                         **self._config,
-                        "platform": "device",
-                        "event": event,
+                        "id": f"{self._config[CONF_DEVICE_ID]}_{self._config[CONF_TYPE]}",
                         "description": f"Typing indicator from {self._device_info.name}",
                         "source": event_data.get("source"),
                         "source_uuid": event_data.get("source_uuid"),
@@ -115,8 +118,7 @@ class DeviceEventHandler:
                     {
                         "trigger": {
                             **self._config,
-                            "platform": "device",
-                            "event": event,
+                            "id": f"{self._config[CONF_DEVICE_ID]}_{self._config[CONF_TYPE]}",
                             "description": f"Message from {self._device_info.name}",
                             # Message data for easy access in automations
                             "message": message_body,
@@ -153,8 +155,7 @@ class DeviceEventHandler:
                     {
                         "trigger": {
                             **self._config,
-                            "platform": "device",
-                            "event": event,
+                            "id": f"{self._config[CONF_DEVICE_ID]}_{self._config[CONF_TYPE]}",
                             "description": f"Message in {self._device_info.name}",
                             # Message data for easy access in automations
                             "message": message_body,

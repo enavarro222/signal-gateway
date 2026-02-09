@@ -423,7 +423,6 @@ async def test_handle_typing_event_started(mock_hass_with_bus, mock_contact_devi
     assert trigger_data["trigger"]["source_uuid"] == "uuid-123"
     assert trigger_data["trigger"]["action"] == "started"
     assert trigger_data["trigger"]["timestamp"] == 1234567890
-    assert trigger_data["trigger"]["event"] == event
 
 
 @pytest.mark.asyncio
