@@ -24,8 +24,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Signal Gateway text entities from a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
-    client = data["client"]
-    coordinators = data["coordinators"]
+    client = data.client
     approved_devices = entry.data.get(CONF_APPROVED_DEVICES)
 
     entities: list[TextEntity] = []
@@ -36,7 +35,7 @@ async def async_setup_entry(
     for contact in contacts:
         device_id = f"contact_{contact.number}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"contact_{contact.uuid}")
+            coordinator = data.get_contact_coordinator(contact)
             if coordinator:
                 entities.append(SignalContactNameEntity(coordinator))
 
@@ -46,7 +45,7 @@ async def async_setup_entry(
     for group in groups:
         device_id = f"group_{group.id}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"group_{group.id}")
+            coordinator = data.get_group_coordinator(group)
             if coordinator:
                 entities.append(SignalGroupNameEntity(coordinator))
 
@@ -77,19 +76,13 @@ class SignalContactNameEntity(SignalContactBaseEntity, TextEntity):
 
     async def async_set_value(self, value: str) -> None:
         """Update the contact name in Signal."""
-        try:
-            await self.coordinator.client.update_contact(
-                recipient=self.contact.number, name=value
-            )
-            # Coordinator refresh propagates the new name to all entities on this device
-            await self.coordinator.async_request_refresh()
-            self.async_write_ha_state()
-            _LOGGER.info("Updated contact %s name to '%s'", self.contact.number, value)
-        except Exception as err:
-            _LOGGER.error(
-                "Failed to update contact %s name: %s", self.contact.number, err
-            )
-            raise
+        await self.coordinator.client.update_contact(
+            recipient=self.contact.number, name=value
+        )
+        # Coordinator refresh propagates the new name to all entities on this device
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
+        _LOGGER.info("Updated contact %s name to '%s'", self.contact.number, value)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -128,31 +121,12 @@ class SignalGroupNameEntity(SignalGroupBaseEntity, TextEntity):
 
     async def async_set_value(self, value: str) -> None:
         """Update the group name in Signal."""
-        try:
-            await self.coordinator.client.update_group(
-                group_id=self.coordinator.group_id, name=value
-            )
-            _LOGGER.info("Updated group %s name to '%s'", self.coordinator.group_id, value)
-        except Exception as err:
-            _LOGGER.error(
-                "Failed to update group %s name: %s", self.coordinator.group_id, err
-            )
-            raise
-
-        # Fetch the updated group from API and notify all sibling entities via
-        # the group_updated bus event (also triggers coordinator refresh in SignalGroupBaseEntity)
-        await self._resync_from_api()
-
-    async def _resync_from_api(self) -> None:
-        """Reload the group from API and fire group_updated for all sibling entities."""
-        updated_group = await self.coordinator.client.get_group(self.coordinator.group_id)
-        self.hass.bus.async_fire(
-            f"{DOMAIN}_group_updated",
-            {
-                "entry_id": self.coordinator.entry_id,
-                "group": updated_group,
-            },
+        await self.coordinator.client.update_group(
+            group_id=self.coordinator.group_id, name=value
         )
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
+        _LOGGER.info("Updated group %s name to '%s'", self.coordinator.group_id, value)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

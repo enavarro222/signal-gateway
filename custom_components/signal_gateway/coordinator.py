@@ -105,16 +105,15 @@ class SignalGroupCoordinator(DataUpdateCoordinator[SignalGroup]):
         self.client = client
         self.entry_id = entry_id
         self.group_id = group_id
+        self.async_add_listener(self._update_device_name)
 
     async def _async_update_data(self) -> SignalGroup:
         """Fetch group data from Signal API."""
         try:
-            group = await self.client.get_group(self.group_id)
+            return await self.client.get_group(self.group_id)
         except Exception as err:
             _LOGGER.error("Error fetching group %s: %s", self.group_id, err)
             raise
-        # self._update_device_name(group)
-        return group
 
     @property
     def device_info(self) -> DeviceInfo | None:
@@ -143,24 +142,25 @@ class SignalGroupCoordinator(DataUpdateCoordinator[SignalGroup]):
     def invalidate_device_info(self) -> None:
         """No-op: device_info is computed directly from self.data, no cache to clear."""
 
-    # def _update_device_name(self) -> None:
-    #     """Update device registry name when a group is renamed.
+    def _update_device_name(self) -> None:
+        """Update device registry name when a group is renamed.
 
-    #     Only updates if the user has not set a custom name for this device.
-    #     """
-    #     if self.data is None:
-    #         return
-    #     device_registry = dr.async_get(self.hass)
-    #     device_entry = device_registry.async_get_device(
-    #         identifiers={
-    #             (
-    #                 DOMAIN,
-    #                 build_group_device_identifier(self.entry_id, self.data.id),
-    #             )
-    #         }
-    #     )
-    #     if device_entry and device_entry.name_by_user is None:
-    #         device_registry.async_update_device(
-    #             device_entry.id,
-    #             name=self.data.name,
-    #         )
+        Only updates if the user has not set a custom name for this device.
+        """
+        if self.data is None:
+            return
+        device_registry = dr.async_get(self.hass)
+        device_entry = device_registry.async_get_device(
+            identifiers={
+                (
+                    DOMAIN,
+                    build_group_device_identifier(self.entry_id, self.data.id),
+                )
+            }
+        )
+        if device_entry and device_entry.name_by_user is None:
+            _LOGGER.debug("Update device group, new name: %s", self.data.name)
+            device_registry.async_update_device(
+                device_entry.id,
+                name=self.data.name,
+            )

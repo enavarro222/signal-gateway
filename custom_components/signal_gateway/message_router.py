@@ -80,18 +80,14 @@ class SignalMessageRouter:
         Args:
             msg: The raw message data from the websocket
         """
-        try:
-            # Classify and route to specific handler
-            msg_type = self.classify_message(msg)
-            if msg_type and msg_type in self._handlers:
-                await self._handlers[msg_type](msg)
-            elif msg_type:
-                _LOGGER.debug("No handler registered for message type: %s", msg_type)
-            else:
-                _LOGGER.debug("Unrecognized message type, skipping routing")
-
-        except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error("Error routing Signal message: %s", err)
+        # Classify and route to specific handler
+        msg_type = self.classify_message(msg)
+        if msg_type and msg_type in self._handlers:
+            await self._handlers[msg_type](msg)
+        elif msg_type:
+            _LOGGER.debug("No handler registered for message type: %s", msg_type)
+        else:
+            _LOGGER.debug("Unrecognized message type, skipping routing")
 
     async def _handle_received_message(self, msg: dict) -> None:
         """Handle a regular received message with text content.
@@ -122,9 +118,7 @@ class SignalMessageRouter:
         )
 
         # Refresh the corresponding coordinator if it exists
-        coordinators = self._hass.data[DOMAIN][self._entry.entry_id].get(
-            "coordinators", {}
-        )
+        coordinators = self._hass.data[DOMAIN][self._entry.entry_id].coordinators
         group_coordinator = coordinators.get(f"group_{internal_id}")
         if group_coordinator:
             assert isinstance(group_coordinator, SignalGroupCoordinator)
