@@ -152,7 +152,7 @@ class SignalAvatarView(HomeAssistantView):
             )
             return web.Response(status=404, text="Entry not found")
 
-        client = hass.data[DOMAIN][entry_id]["client"]
+        client = hass.data[DOMAIN][entry_id].client
 
         try:
             if device_type == "contact":

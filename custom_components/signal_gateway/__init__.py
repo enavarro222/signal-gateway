@@ -18,12 +18,12 @@ from .const import (
     CONF_SIGNAL_CLI_REST_API_URL,
     CONF_WEBSOCKET_ENABLED,
     DOMAIN,
-    EVENT_SIGNAL_RECEIVED,
 )
 from .signal import SignalClient
 from .notify import async_unload_notify_service
 from .avatar_view import setup_avatar_view
 from .coordinator import SignalContactCoordinator, SignalGroupCoordinator
+from .data import SignalGatewayEntryData
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Check for duplicate service names across all entries
     for other_entry_id, other_data in hass.data[DOMAIN].items():
         if other_entry_id != entry.entry_id:
-            other_service_name = other_data.get("service_name")
+            other_service_name = other_data.service_name
             if other_service_name == service_name:
                 _LOGGER.error(
                     "Cannot setup Signal Gateway '%s': service name '%s' "
@@ -122,7 +122,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data to create coordinators for all contacts and groups
     contacts = await client.list_contacts()
     for contact in contacts:
-        coordinator = SignalContactCoordinator(hass, client, entry.entry_id, contact.uuid)
+        coordinator = SignalContactCoordinator(
+            hass, client, entry.entry_id, contact.uuid
+        )
         await coordinator.async_config_entry_first_refresh()
         coordinators[f"contact_{contact.uuid}"] = coordinator
 
@@ -130,15 +132,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for group in groups:
         coordinator = SignalGroupCoordinator(hass, client, entry.entry_id, group.id)
         await coordinator.async_config_entry_first_refresh()
-        coordinators[f"group_{group.id}"] = coordinator
+        coordinators[f"group_{group.internal_id}"] = coordinator
 
     # Store the client, service_name, default recipients, and coordinators
-    hass.data[DOMAIN][entry.entry_id] = {
-        "client": client,
-        "service_name": service_name,
-        "default_recipients": default_recipients,
-        "coordinators": coordinators,
-    }
+    hass.data[DOMAIN][entry.entry_id] = SignalGatewayEntryData(
+        client=client,
+        service_name=service_name,
+        default_recipients=default_recipients,
+        coordinators=coordinators,
+    )
 
     # Set up WebSocket listener if enabled
     if websocket_enabled:
@@ -161,8 +163,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    data = hass.data[DOMAIN].get(entry.entry_id, {})
-    service_name = data.get("service_name")
+    data = hass.data[DOMAIN].get(entry.entry_id)
+    service_name = data.service_name if data else None
     _LOGGER.info("Unload Signal Gateway entry '%s'", service_name)
 
     # Manually unload the notify service first (this must be done before platform unload)
@@ -178,7 +180,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Stop the WebSocket listener
-    client = data.get("client")
+    client = data.client if data else None
     if client:
         await client.stop_listening()
         _LOGGER.info("Signal WebSocket listener stopped")

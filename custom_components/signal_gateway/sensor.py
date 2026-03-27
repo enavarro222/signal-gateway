@@ -27,10 +27,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Signal Gateway sensor entities from a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
-    client = data["client"]
-    coordinators: dict[str, SignalContactCoordinator | SignalGroupCoordinator] = data[
-        "coordinators"
-    ]
+    client = data.client
     approved_devices = entry.data.get(CONF_APPROVED_DEVICES)
 
     entities: list[SensorEntity] = []
@@ -41,7 +38,7 @@ async def async_setup_entry(
     for contact in contacts:
         device_id = f"contact_{contact.number}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"contact_{contact.uuid}")
+            coordinator = data.get_contact_coordinator(contact)
             if coordinator:
                 entities.append(SignalContactInfoEntity(coordinator))
 
@@ -51,7 +48,7 @@ async def async_setup_entry(
     for group in groups:
         device_id = f"group_{group.id}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"group_{group.id}")
+            coordinator = data.get_group_coordinator(group)
             if coordinator:
                 entities.append(SignalGroupInfoEntity(coordinator))
 
@@ -68,7 +65,9 @@ class SignalContactInfoEntity(SignalContactBaseEntity, SensorEntity):
         """Initialize the Signal contact info entity."""
         super().__init__(coordinator)
         self._attr_name = "Info"
-        self._attr_unique_id = f"{coordinator.entry_id}_contact_{coordinator.data.uuid}_info"
+        self._attr_unique_id = (
+            f"{coordinator.entry_id}_contact_{coordinator.data.uuid}_info"
+        )
         self._attr_native_value = coordinator.data.display_name
 
     @property
@@ -80,7 +79,12 @@ class SignalContactInfoEntity(SignalContactBaseEntity, SensorEntity):
     def entity_picture(self) -> str | None:
         """Return the entity picture URL for this contact."""
         contact = self.contact
-        if self.hass is not None and contact and contact.profile and contact.profile.has_avatar:
+        if (
+            self.hass is not None
+            and contact
+            and contact.profile
+            and contact.profile.has_avatar
+        ):
             token, _ = generate_avatar_token(
                 self.hass, self.coordinator.entry_id, contact.uuid
             )
@@ -156,7 +160,9 @@ class SignalGroupInfoEntity(SignalGroupBaseEntity, SensorEntity):
         """Initialize the Signal group info entity."""
         super().__init__(coordinator)
         self._attr_name = "Info"
-        self._attr_unique_id = f"{coordinator.entry_id}_group_{coordinator.data.id}_info"
+        self._attr_unique_id = (
+            f"{coordinator.entry_id}_group_{coordinator.data.id}_info"
+        )
         self._attr_native_value = coordinator.data.name
 
     @property

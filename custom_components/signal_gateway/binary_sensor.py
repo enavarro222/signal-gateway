@@ -11,7 +11,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 
-from .const import CONF_APPROVED_DEVICES, DOMAIN, EVENT_TYPING_INDICATOR
+from .const import DOMAIN, CONF_APPROVED_DEVICES, EVENT_TYPING_INDICATOR
 from .device import SignalContactBaseEntity, SignalGroupBaseEntity
 from .coordinator import SignalContactCoordinator, SignalGroupCoordinator
 
@@ -25,8 +25,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Signal Gateway binary sensor entities from a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
-    client = data["client"]
-    coordinators = data["coordinators"]
+    client = data.client
     approved_devices = entry.data.get(CONF_APPROVED_DEVICES)
 
     entities: list[BinarySensorEntity] = []
@@ -37,7 +36,7 @@ async def async_setup_entry(
     for contact in contacts:
         device_id = f"contact_{contact.number}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"contact_{contact.uuid}")
+            coordinator = data.get_contact_coordinator(contact)
             if coordinator:
                 entities.append(SignalContactIsWritingEntity(coordinator))
 
@@ -47,7 +46,7 @@ async def async_setup_entry(
     for group in groups:
         device_id = f"group_{group.id}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"group_{group.id}")
+            coordinator = data.get_group_coordinator(group)
             if coordinator:
                 entities.append(SignalGroupIsWritingEntity(coordinator))
 

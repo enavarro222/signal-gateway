@@ -60,16 +60,17 @@ async def async_setup_entry(
         _LOGGER.error("Signal Gateway client not found for entry %s", entry.entry_id)
         return False
 
-    client = hass.data[DOMAIN][entry.entry_id].get("client")
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    client = entry_data.client
     if not client:
         _LOGGER.error("Signal Gateway client not initialized")
         return False
 
     # Get default recipients and approved devices from config
-    default_recipients = hass.data[DOMAIN][entry.entry_id].get("default_recipients", [])
+    default_recipients = entry_data.default_recipients
     approved_devices = entry.data.get("approved_devices")
-    coordinators = hass.data[DOMAIN][entry.entry_id].get("coordinators", {})
-    service_name = hass.data[DOMAIN][entry.entry_id]["service_name"]
+    coordinators = entry_data.coordinators
+    service_name = entry_data.service_name
 
     # Load and register the legacy notify service
     await async_load_notify_service(
@@ -96,7 +97,7 @@ async def async_setup_entry(
     for group in groups:
         device_id = f"group_{group.id}"
         if approved_devices is None or device_id in approved_devices:
-            coordinator = coordinators.get(f"group_{group.id}")
+            coordinator = entry_data.get_group_coordinator(group)
             if coordinator:
                 entities.append(SignalGroupNotifyEntity(coordinator))
 
@@ -114,8 +115,8 @@ async def async_setup_entry(
 async def async_unload_notify_service(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a Signal Gateway notify entry."""
     _LOGGER.info("Unloading Signal Gateway notify entry %s", entry.entry_id)
-    data = hass.data[DOMAIN].get(entry.entry_id, {})
-    service_name = data.get("service_name")
+    data = hass.data[DOMAIN].get(entry.entry_id)
+    service_name = data.service_name if data else None
 
     if service_name:
         _LOGGER.debug(
