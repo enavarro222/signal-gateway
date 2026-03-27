@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .message_router import SignalMessageRouter
 from .const import (
     CONF_PHONE_NUMBER,
     CONF_RECIPIENTS,
@@ -118,18 +119,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up WebSocket listener if enabled
     if websocket_enabled:
+        # Initialize message router
+        message_router = SignalMessageRouter(hass, entry, client)
 
-        async def _handle_message(data: dict) -> None:
-            """Handle incoming Signal messages."""
-            try:
-                hass.bus.async_fire(
-                    EVENT_SIGNAL_RECEIVED,
-                    data,
-                )
-            except Exception as err:  # pylint: disable=broad-except
-                _LOGGER.error("Error processing Signal message: %s", err)
-
-        client.set_message_handler(_handle_message)
+        # Set router as the message handler
+        client.set_message_handler(message_router.route_message)
         await client.start_listening()
         _LOGGER.info("Signal WebSocket listener started")
 

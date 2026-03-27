@@ -166,3 +166,14 @@ class SignalGroupNotifyEntity(GroupDeviceMixin, SignalNotifyEntity):
     def _display_name(self) -> str:
         """Return the group name."""
         return self._group.name
+
+    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
+        """Update the group object.
+
+        Args:
+            group: The updated group object
+            write_state: Whether to write the state to Home Assistant
+        """
+        self._group = group
+        if write_state:
+            self.async_write_ha_state()

@@ -79,14 +79,32 @@ class SignalContactNameEntity(ContactDeviceMixin, TextEntity):
             await self._client.update_contact(
                 recipient=self._contact.number, name=value
             )
+            # Update internal state
+            self._contact.name = value
             self._attr_native_value = value
             self.async_write_ha_state()
+
+            # Refresh related sensor entity
+            await self._refresh_related_entities()
+
             _LOGGER.info("Updated contact %s name to '%s'", self._contact.number, value)
         except Exception as err:
             _LOGGER.error(
                 "Failed to update contact %s name: %s", self._contact.number, err
             )
             raise
+
+    async def _refresh_related_entities(self) -> None:
+        """Refresh sensor and other entities for this contact."""
+        # Fire an event to signal that the contact data has changed
+        # Other entities listening for this can refresh themselves
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_contact_updated",
+            {
+                "entry_id": self._entry_id,
+                "contact": self._contact,
+            },
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -115,18 +133,51 @@ class SignalGroupNameEntity(GroupDeviceMixin, TextEntity):
         super().__init__(group=group, entry_id=entry_id, client=client)
         self._attr_name = "Name"
         self._attr_unique_id = f"{entry_id}_group_{group.id}_name"
+        self._update_group(group)
+
+    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
+        """Update the group and native value.
+
+        Args:
+            group: The updated group object
+            write_state: Whether to write the state to Home Assistant
+        """
+        self._group = group
         self._attr_native_value = group.name or group.id
+
+        if write_state:
+            # Write state (this forces re-evaluation of available property)
+            # Note: Device name update is handled by sensor entity (primary)
+            self.async_write_ha_state()
 
     async def async_set_value(self, value: str) -> None:
         """Update the group name in Signal."""
         try:
             await self._client.update_group(group_id=self._group.id, name=value)
-            self._attr_native_value = value
-            self.async_write_ha_state()
             _LOGGER.info("Updated group %s name to '%s'", self._group.id, value)
         except Exception as err:
             _LOGGER.error("Failed to update group %s name: %s", self._group.id, err)
             raise
+
+        await self._resync_from_api()
+
+    async def _resync_from_api(self) -> None:
+        """Reload the group and notify changes ."""
+        # Fire an event to signal that the group data (may) has changed
+        # Other entities (and ourself) listening for this can refresh themselves
+        #
+        # Note: we reload the group from API to ensure change has been validated
+        # there is no way to check if we have permission to update the group name
+        # until we try, so we need to refresh the group data from the server.
+        updated_group = await self._client.get_group(self._group.id)
+        # Refresh related sensor entity
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_group_updated",
+            {
+                "entry_id": self._entry_id,
+                "group": updated_group,
+            },
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

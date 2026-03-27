@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN
 from .signal import SignalClient
 from .signal.models import SignalContact, SignalGroup
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.core import HomeAssistant
 
 
 class SignalDeviceEntity(ABC):  # pylint: disable=too-few-public-methods
@@ -76,6 +83,10 @@ class ContactDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-
 class GroupDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-methods
     """Mixin for entities representing a Signal group device."""
 
+    if TYPE_CHECKING:
+        hass: HomeAssistant
+        async_on_remove: Callable[[Callable[[], None]], None]
+
     def __init__(
         self, group: SignalGroup, client: SignalClient, entry_id: str, **kwargs
     ) -> None:
@@ -96,3 +107,61 @@ class GroupDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-me
     def _get_device_model(self) -> str:
         """Get the device model."""
         return "Group"
+
+    async def async_added_to_hass(self) -> None:
+        """Register event listener when entity is added to hass."""
+        # Call super if it exists (Entity class provides this method)
+        if hasattr(super(), "async_added_to_hass"):
+            await super().async_added_to_hass()  # type: ignore[misc]
+
+        # Listen for group update events
+        unsubscribe = self.hass.bus.async_listen(
+            f"{DOMAIN}_group_updated",
+            self._handle_group_updated,
+        )
+        self.async_on_remove(unsubscribe)
+
+    async def _handle_group_updated(self, event) -> None:
+        """Handle group updated event."""
+        data = event.data
+        updated_group = data.get("group")
+        if (
+            data.get("entry_id") == self._entry_id
+            and updated_group
+            and updated_group.id == self._group.id
+        ):
+            # Replace the entire group object with fresh data
+            self._update_group(updated_group, write_state=True)
+
+    @abstractmethod
+    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
+        """Update the group and native value.
+
+        Must be implemented by subclasses to handle group-specific updates.
+
+        Args:
+            group: The updated group object
+            write_state: Whether to write the state to Home Assistant
+        """
+
+    def _update_device_name(self) -> None:
+        """Update the device name in the device registry.
+
+        This should be called when the group name changes to keep the
+        device registry in sync. Only updates if user hasn't set a custom name.
+        """
+        # Check if hass is available (entity is registered)
+        if not hasattr(self, "hass") or self.hass is None:
+            return
+
+        device_registry = dr.async_get(self.hass)
+        device_entry = device_registry.async_get_device(
+            identifiers={(DOMAIN, self._get_device_identifier())}
+        )
+
+        if device_entry and device_entry.name_by_user is None:
+            # Only update if user hasn't set a custom name
+            device_registry.async_update_device(
+                device_entry.id,
+                name=self._group.name,
+            )

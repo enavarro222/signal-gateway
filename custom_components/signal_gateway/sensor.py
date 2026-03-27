@@ -78,6 +78,30 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
         self._attr_unique_id = f"{entry_id}_contact_{contact.number}_info"
         self._attr_native_value = contact.display_name
 
+    async def async_added_to_hass(self) -> None:
+        """Register event listener when entity is added to hass."""
+        await super().async_added_to_hass()
+        # Listen for contact update events
+        unsubscribe = self.hass.bus.async_listen(
+            f"{DOMAIN}_contact_updated",
+            self._handle_contact_updated,
+        )
+        self.async_on_remove(unsubscribe)
+
+    async def _handle_contact_updated(self, event) -> None:
+        """Handle contact updated event."""
+        data = event.data
+        if (
+            data.get("entry_id") == self._entry_id
+            and data.get("contact_number") == self._contact.number
+        ):
+            # Update the contact name
+            new_name = data.get("contact_name")
+            if new_name:
+                self._contact.name = new_name
+                self._attr_native_value = self._contact.display_name
+                self.async_write_ha_state()
+
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
@@ -125,7 +149,21 @@ class SignalGroupInfoEntity(GroupDeviceMixin, SensorEntity):
         super().__init__(group=group, entry_id=entry_id, client=client)
         self._attr_name = "Info"
         self._attr_unique_id = f"{entry_id}_group_{group.id}_info"
+        self._update_group(group)
+
+    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
+        """Update the group and native value.
+
+        Args:
+            group: The updated group object
+            write_state: Whether to write the state to Home Assistant
+        """
+        self._group = group
         self._attr_native_value = group.name
+        if write_state:
+            # Update device name in registry (sensor is the primary entity for device updates)
+            self._update_device_name()
+            self.async_write_ha_state()
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
