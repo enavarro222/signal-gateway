@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import aiohttp
 
@@ -12,8 +12,11 @@ from .websocket_listener import SignalWebSocketListener
 _LOGGER = None  # Will be initialized if needed
 
 
-class SignalClient:
-    """Unified client for Signal-cli-rest-api with HTTP and WebSocket support."""
+class SignalClient(SignalHTTPClient):
+    """Unified client for Signal-cli-rest-api with HTTP and WebSocket support.
+
+    Inherits all HTTP methods from SignalHTTPClient and adds WebSocket functionality.
+    """
 
     def __init__(self, api_url: str, phone_number: str, session: aiohttp.ClientSession):
         """Initialize the Signal client.
@@ -23,30 +26,8 @@ class SignalClient:
             phone_number: Phone number associated with this Signal account
             session: aiohttp ClientSession for HTTP requests
         """
-        self._http_client = SignalHTTPClient(api_url, phone_number, session)
+        super().__init__(api_url, phone_number, session)
         self._ws_listener = SignalWebSocketListener(api_url, phone_number, session)
-
-    async def send_message(
-        self,
-        target: str,
-        message: str,
-        base64_attachments: Optional[list[str]] = None,
-        text_mode: str = "normal",
-    ) -> dict[str, Any]:
-        """Send a message via Signal.
-
-        Args:
-            target: Phone number or group ID to send to
-            message: Message text to send
-            base64_attachments: Optional list of base64 encoded attachments
-            text_mode: Text formatting mode ("normal" or "styled", default: "normal")
-
-        Returns:
-            Response from the API
-        """
-        return await self._http_client.send_message(
-            target, message, base64_attachments, text_mode
-        )
 
     def set_message_handler(self, handler: Callable[[dict[str, Any]], Any]) -> None:
         """Set the callback handler for incoming WebSocket messages.
