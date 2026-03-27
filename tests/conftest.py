@@ -64,9 +64,11 @@ def mock_config_entry():
 def mock_hass():
     """Create a mock Home Assistant instance."""
     hass = MagicMock()
-    hass.data = {DOMAIN: {}}
+    hass.data = {DOMAIN: {}, "avatar_secret": "test_secret_key_12345"}
     hass.services = MagicMock()
     hass.services.async_register = MagicMock()
+    hass.config.path.return_value = "secret_path"
+    hass.http = MagicMock()
     return hass
 
 
