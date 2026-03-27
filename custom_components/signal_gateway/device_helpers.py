@@ -2,30 +2,6 @@
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
-
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
-
-from .const import DOMAIN
-
-# Regex pattern to parse device identifiers
-# Format: {entry_id}_{contact|group}_{identifier}
-DEVICE_IDENTIFIER_PATTERN = re.compile(r"^(.+)_(contact|group)_(.+)$")
-GROUP_INTERNAL_ID_PATTERN = re.compile(r"^.+_group-internal_(.+)$")
-
-
-@dataclass
-class DeviceInfo:
-    """Structured information about a Signal Gateway device extracted from the device registry."""
-
-    entry_id: str
-    type: str  # 'contact' or 'group'
-    identifier: str  # phone number for contact, group ID for group
-    internal_id: str | None = None  # Only for groups
-    name: str | None = None  # Optional device name for better logging
-
 
 def build_contact_device_identifier(entry_id: str, phone_number: str) -> str:
     """Build device identifier for a contact.
@@ -64,68 +40,3 @@ def build_group_internal_identifier(entry_id: str, internal_id: str) -> str:
         Device identifier string
     """
     return f"{entry_id}_group-internal_{internal_id}"
-
-
-async def async_get_signal_device(
-    hass: HomeAssistant, device_id: str
-) -> dr.DeviceEntry | None:
-    """Get a Signal Gateway device if it exists.
-
-    Args:
-        hass: Home Assistant instance
-        device_id: Device ID to retrieve
-
-    Returns:
-        Device entry if it's a Signal Gateway device, None otherwise
-    """
-    device_registry = dr.async_get(hass)
-    device = device_registry.async_get(device_id)
-
-    if not device:
-        return None
-
-    # Check if this is a Signal Gateway device
-    if not any(identifier[0] == DOMAIN for identifier in device.identifiers):
-        return None
-
-    return device
-
-
-def extract_device_info(device: dr.DeviceEntry) -> DeviceInfo | None:
-    """Extract Signal Gateway device information from device registry entry.
-
-    Args:
-        device: Device registry entry
-
-    Returns:
-        Dict with entry_id, type, and identifier or None if not a valid Signal device
-    """
-    device_info = {}
-    for identifier in device.identifiers:
-        if identifier[0] != DOMAIN:
-            continue
-        # Parse identifier using regex
-        # Expected format: 'entry_id_contact_+33607228160' or 'entry_id_group_groupid123'
-        # Internal identifiers like 'entry_id_group_internal_xxx' won't match the pattern
-        match = DEVICE_IDENTIFIER_PATTERN.match(identifier[1])
-        if match:
-            device_info["entry_id"] = match.group(1)
-            device_info["type"] = match.group(2)  # 'contact' or 'group'
-            device_info["identifier"] = match.group(3)  # phone number or group
-        else:
-            match_internal = GROUP_INTERNAL_ID_PATTERN.match(identifier[1])
-            if match_internal:
-                device_info["internal_id"] = match_internal.group(1)
-    if (
-        "entry_id" in device_info
-        and "type" in device_info
-        and "identifier" in device_info
-    ):
-        return DeviceInfo(
-            name=device.name,
-            entry_id=device_info["entry_id"],
-            type=device_info["type"],
-            identifier=device_info["identifier"],
-            internal_id=device_info.get("internal_id"),
-        )
-    return None
