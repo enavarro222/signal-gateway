@@ -119,3 +119,90 @@ def sample_group():
         internal_id="internal-123",
         members=["+1234567890"],
     )
+
+
+@pytest.fixture
+def mock_hass_with_bus():
+    """Create a mock Home Assistant instance with event bus."""
+    from homeassistant.core import HomeAssistant
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.data = {DOMAIN: {}}
+    hass.services = MagicMock()
+    hass.services.async_register = MagicMock()
+    hass.bus = MagicMock()
+    hass.bus.async_listen = MagicMock()
+    return hass
+
+
+@pytest.fixture
+def valid_user_input():
+    """Create valid user input for config flow."""
+    return {
+        CONF_NAME: "Test Gateway",
+        CONF_SIGNAL_CLI_REST_API_URL: "http://localhost:8080",
+        CONF_PHONE_NUMBER: "+1234567890",
+        CONF_WEBSOCKET_ENABLED: True,
+        CONF_RECIPIENTS: "",
+    }
+
+
+@pytest.fixture
+def mock_contacts():
+    """Return mock contacts for discovery."""
+    return [
+        SignalContact(
+            number="+1234567890",
+            uuid="uuid-1",
+            name="John Doe",
+            given_name="John",
+            profile_name="John",
+            username=None,
+            nickname=None,
+            profile=None,
+            note="",
+            color="blue",
+            message_expiration="0",
+            blocked=False,
+        ),
+        SignalContact(
+            number="+9876543210",
+            uuid="uuid-2",
+            name="",
+            given_name="Jane",
+            profile_name="Jane Smith",
+            username=None,
+            nickname=None,
+            profile=None,
+            note="",
+            color="green",
+            message_expiration="0",
+            blocked=False,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_groups():
+    """Return mock groups for discovery."""
+    return [
+        SignalGroup(
+            id="group123",
+            internal_id="internal-abc",
+            name="Family",
+            members=["+1111111111", "+2222222222"],
+            blocked=False,
+            pending_invites=[],
+            pending_requests=[],
+            admins=["+1111111111"],
+            description="Family group",
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_session():
+    """Create a mock aiohttp session."""
+    import aiohttp
+
+    return MagicMock(spec=aiohttp.ClientSession)

@@ -64,7 +64,11 @@ def test_group_is_writing_entity_device_info(mock_signal_client, sample_group):
 
     from custom_components.signal_gateway.const import DOMAIN
 
-    assert device_info["identifiers"] == {(DOMAIN, "test_entry_group_group-id-123")}
+    # Groups have two identifiers: API id and internal_id (for websocket matching)
+    assert device_info["identifiers"] == {
+        (DOMAIN, "test_entry_group_group-id-123"),
+        (DOMAIN, "test_entry_group-internal_internal-123"),
+    }
     assert device_info["name"] == "Test Group"
     assert device_info["manufacturer"] == "Signal Messenger"
     assert device_info["model"] == "Group"

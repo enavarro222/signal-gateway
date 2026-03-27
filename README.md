@@ -227,6 +227,45 @@ automation:
           target: "{{ trigger.event.data.sender }}"
 ```
 
+### Device Automations
+
+Signal Gateway provides **device triggers** and **device actions** for each contact and group, making it easy to create automations in the UI.
+
+**Device Trigger - Message Received:**
+Create automations that trigger when specific contacts or groups send messages:
+
+1. Go to **Settings → Automations → Create Automation**
+2. Choose **Device** trigger
+3. Select a Signal contact or group device
+4. Choose **Message received** trigger
+5. Add your actions
+
+**Example:** Turn on lights when a family member sends any message
+
+**Device Action - Send Message:**
+Send messages directly to contacts or groups as an automation action:
+
+1. In your automation actions, choose **Device**
+2. Select a Signal contact or group device
+3. Choose **Send a message** action
+4. Enter your message (supports templates)
+
+**Example:** Send a message to a contact when motion is detected
+
+```yaml
+automation:
+  - alias: "Alert on motion"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.motion_sensor
+        to: "on"
+    action:
+      - device_id: abc123...  # Your Signal contact device
+        domain: signal_gateway
+        type: send_message
+        message: "Motion detected at {{ now().strftime('%H:%M') }}"
+```
+
 ## Configuration
 
 ### Attachment Support

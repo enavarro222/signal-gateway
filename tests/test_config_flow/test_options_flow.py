@@ -84,10 +84,10 @@ async def test_options_flow_duplicate_service_name(valid_user_input, mock_config
     """Test options flow with duplicate service name."""
     flow = SignalGatewayOptionsFlow(mock_config_entry)
 
-    # Create another entry with the same name
+    # Create another entry with the same name as valid_user_input
     other_entry = MagicMock()
     other_entry.entry_id = "other_entry_id"
-    other_entry.data = {"name": "My Signal"}  # Same as valid_user_input
+    other_entry.data = {"name": "Test Gateway"}  # Same as valid_user_input["name"]
 
     mock_hass = MagicMock()
     mock_hass.config_entries.async_entries = MagicMock(
@@ -131,7 +131,7 @@ async def test_options_flow_unknown_error(valid_user_input, mock_config_entry):
 
     # Mock validation to raise unexpected error
     with patch(
-        "custom_components.signal_gateway.config_flow.flows.validate_signal_gateway_input",
+        "custom_components.signal_gateway.config_flow.options_flow.validate_signal_gateway_input",
         side_effect=Exception("Unexpected error"),
     ):
         result = await flow.async_step_init(user_input=valid_user_input)
