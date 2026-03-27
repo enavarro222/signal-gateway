@@ -14,8 +14,8 @@ check: format lint
 	@echo "✅ All checks passed"
 
 format:
-	@echo "📝 Checking code format with black..."
-	@black --check $(PYTHON_FILES)
+	@echo "📝 Formatting code with ruff..."
+	@ruff format $(PYTHON_FILES)
 
 lint:
 	@echo "🔗 Linting with pylint..."

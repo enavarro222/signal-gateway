@@ -22,7 +22,7 @@ FAILED=0
 
 # Format check with black
 echo "📝 Checking code format with black..."
-black --check $PYTHON_FILES
+ruff format $PYTHON_FILES
 if [ $? -ne 0 ]; then
     echo -e "${YELLOW}⚠️  Formatting issues found. Run: black $PYTHON_FILES${NC}"
     FAILED=1

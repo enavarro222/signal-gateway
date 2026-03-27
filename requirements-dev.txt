@@ -1,10 +1,9 @@
 # Development requirements for Signal Gateway
 
 # Code quality
-black>=24.1.0
+ruff>=0.6.0
 pylint>=3.0.0
 mypy>=1.7.0
-flake8>=6.1.0
 isort>=5.13.0
 
 # Testing
@@ -14,7 +13,7 @@ pytest-cov>=4.1.0
 pytest-homeassistant-custom-component>=0.13.0
 
 # HomeAssistant development
-homeassistant>=2024.1.0
+homeassistant==2026.2.1
 
 # Documentation
 sphinx>=7.2.0
