@@ -5,7 +5,11 @@
 import pytest
 
 from custom_components.signal_gateway.message_router import SignalMessageRouter
-from custom_components.signal_gateway.const import DOMAIN, EVENT_SIGNAL_RECEIVED
+from custom_components.signal_gateway.const import (
+    DOMAIN,
+    EVENT_SIGNAL_RECEIVED,
+    EVENT_TYPING_INDICATOR,
+)
 
 
 @pytest.fixture
@@ -64,7 +68,7 @@ def group_update_message_data():
 
 @pytest.fixture
 def typing_indicator_data():
-    """Sample typing indicator data (future feature)."""
+    """Sample typing indicator data (contact, not group)."""
     return {
         "envelope": {
             "source": "+1234567890",
@@ -74,7 +78,25 @@ def typing_indicator_data():
             "typingMessage": {
                 "action": "STARTED",
                 "timestamp": 1234567890000,
-                "groupId": None,
+            },
+        },
+        "account": "+9876543210",
+    }
+
+
+@pytest.fixture
+def group_typing_indicator_data():
+    """Sample group typing indicator data (should be ignored)."""
+    return {
+        "envelope": {
+            "source": "+1234567890",
+            "sourceNumber": "+1234567890",
+            "sourceUuid": "test-uuid",
+            "timestamp": 1234567890000,
+            "typingMessage": {
+                "action": "STARTED",
+                "timestamp": 1234567890000,
+                "groupId": "group-internal-id",
             },
         },
         "account": "+9876543210",
@@ -113,6 +135,22 @@ def test_classify_message_group_update(message_router, group_update_message_data
     """Test classify_message identifies group update correctly."""
     msg_type = message_router.classify_message(group_update_message_data)
     assert msg_type == "group_update"
+
+
+def test_classify_message_typing_indicator_contact(
+    message_router, typing_indicator_data
+):
+    """Test classify_message identifies contact typing indicator correctly."""
+    msg_type = message_router.classify_message(typing_indicator_data)
+    assert msg_type == "typing_indicator"
+
+
+def test_classify_message_typing_indicator_group(
+    message_router, group_typing_indicator_data
+):
+    """Test classify_message ignores group typing indicators."""
+    msg_type = message_router.classify_message(group_typing_indicator_data)
+    assert msg_type is None
 
 
 def test_classify_message_unrecognized(message_router, unrecognized_message_data):
@@ -220,6 +258,25 @@ async def test_route_message_group_update(
     assert call_args[0][0] == f"{DOMAIN}_group_updated"
     assert call_args[0][1]["entry_id"] == "test_entry_123"
     assert call_args[0][1]["group"] == sample_group
+
+
+@pytest.mark.asyncio
+async def test_route_message_typing_indicator(
+    message_router, mock_hass, typing_indicator_data
+):
+    """Test route_message routes typing indicator correctly."""
+    await message_router.route_message(typing_indicator_data)
+
+    # Verify typing indicator event was fired
+    mock_hass.bus.async_fire.assert_called_once()
+    call_args = mock_hass.bus.async_fire.call_args
+    assert call_args[0][0] == f"{DOMAIN}_{EVENT_TYPING_INDICATOR}"
+    event_data = call_args[0][1]
+    assert event_data["entry_id"] == "test_entry_123"
+    assert event_data["source"] == "+1234567890"
+    assert event_data["source_uuid"] == "test-uuid"
+    assert event_data["action"] == "started"
+    assert event_data["timestamp"] == 1234567890000
 
 
 @pytest.mark.asyncio
@@ -393,18 +450,71 @@ async def test_handle_group_update_empty_groups_list(
     mock_hass.bus.async_fire.assert_not_called()
 
 
-# Test _handle_typing_indicator (future feature)
+# Test _handle_typing_indicator
 
 
 @pytest.mark.asyncio
-async def test_handle_typing_indicator_placeholder(
-    message_router, typing_indicator_data
+async def test_handle_typing_indicator_contact(
+    message_router, mock_hass, typing_indicator_data
 ):
-    """Test _handle_typing_indicator placeholder implementation."""
-    # This is a placeholder test for the future typing indicator feature
-    # Currently just verifies the method doesn't raise errors
+    """Test _handle_typing_indicator handles contact typing indicators."""
     await message_router._handle_typing_indicator(typing_indicator_data)
-    # No assertions - just verify it doesn't crash
+
+    # Verify event was fired
+    mock_hass.bus.async_fire.assert_called_once()
+    call_args = mock_hass.bus.async_fire.call_args
+    assert call_args[0][0] == f"{DOMAIN}_{EVENT_TYPING_INDICATOR}"
+    event_data = call_args[0][1]
+    assert event_data["entry_id"] == "test_entry_123"
+    assert event_data["source"] == "+1234567890"
+    assert event_data["source_uuid"] == "test-uuid"
+    assert event_data["action"] == "started"
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_indicator_stopped(
+    message_router, mock_hass, typing_indicator_data
+):
+    """Test _handle_typing_indicator handles STOPPED action."""
+    # Modify the action to STOPPED
+    typing_indicator_data["envelope"]["typingMessage"]["action"] = "STOPPED"
+
+    await message_router._handle_typing_indicator(typing_indicator_data)
+
+    # Verify event was fired with correct action
+    mock_hass.bus.async_fire.assert_called_once()
+    call_args = mock_hass.bus.async_fire.call_args
+    event_data = call_args[0][1]
+    assert event_data["action"] == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_indicator_group_ignored(
+    message_router, mock_hass, group_typing_indicator_data
+):
+    """Test _handle_typing_indicator ignores group typing indicators."""
+    await message_router._handle_typing_indicator(group_typing_indicator_data)
+
+    # No event should be fired for group typing indicators
+    mock_hass.bus.async_fire.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_typing_indicator_missing_source(message_router, mock_hass):
+    """Test _handle_typing_indicator handles missing source gracefully."""
+    msg = {
+        "envelope": {
+            "typingMessage": {
+                "action": "STARTED",
+                "timestamp": 1234567890000,
+            },
+        },
+    }
+
+    await message_router._handle_typing_indicator(msg)
+
+    # No event should be fired when source is missing
+    mock_hass.bus.async_fire.assert_not_called()
 
 
 # Integration tests
@@ -424,6 +534,7 @@ async def test_router_initialization(mock_hass, mock_entry, mock_signal_client):
     assert router._client == mock_signal_client
     assert "received_message" in router._handlers
     assert "group_update" in router._handlers
+    assert "typing_indicator" in router._handlers
 
 
 @pytest.mark.asyncio

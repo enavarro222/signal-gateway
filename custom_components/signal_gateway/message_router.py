@@ -8,7 +8,7 @@ from typing import Callable, Awaitable, Dict, Optional
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
-from .const import DOMAIN, EVENT_SIGNAL_RECEIVED
+from .const import DOMAIN, EVENT_SIGNAL_RECEIVED, EVENT_TYPING_INDICATOR
 from .signal import SignalClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class SignalMessageRouter:
         self._handlers: Dict[str, Callable[[dict], Awaitable[None]]] = {
             "received_message": self._handle_received_message,
             "group_update": self._handle_group_update,
-            # Future: "typing_indicator": self._handle_typing_indicator,
+            "typing_indicator": self._handle_typing_indicator,
             # Future: "reaction": self._handle_reaction,
         }
 
@@ -61,9 +61,10 @@ class SignalMessageRouter:
         if data_message and data_message.get("message") is not None:
             return "received_message"
 
-        # Future: Add typing indicator detection
-        # if "typingMessage" in envelope:
-        #     return "typing_indicator"
+        # Check for typing indicator (contact only, not groups)
+        typing_message = envelope.get("typingMessage")
+        if typing_message and not typing_message.get("groupId"):
+            return "typing_indicator"
 
         # Future: Add reaction detection
         # if data_message.get("reaction"):
@@ -150,16 +151,44 @@ class SignalMessageRouter:
             internal_id,
         )
 
-    async def _handle_typing_indicator(
-        self, msg: dict
-    ) -> None:  # pylint: disable=unused-argument
+    async def _handle_typing_indicator(self, msg: dict) -> None:
         """Handle a typing indicator notification.
 
-        This occurs when a user starts or stops typing.
+        This occurs when a contact (not group) starts or stops typing.
 
         Args:
             msg: The message data containing typing information
         """
-        # Future implementation for typing indicators
-        # Will fire events that binary_sensor entities can listen to
-        _LOGGER.debug("Typing indicator received: %s", msg)
+        envelope = msg.get("envelope", {})
+        typing_message = envelope.get("typingMessage", {})
+        source = envelope.get("source") or envelope.get("sourceNumber")
+        source_uuid = envelope.get("sourceUuid")
+        action = typing_message.get("action", "")
+
+        # Only handle contact typing indicators (groupId should be None/empty)
+        if typing_message.get("groupId"):
+            _LOGGER.debug("Ignoring group typing indicator")
+            return
+
+        if not source:
+            _LOGGER.warning("Typing indicator missing source information")
+            return
+
+        _LOGGER.debug(
+            "Contact %s (%s) typing indicator: %s",
+            source,
+            source_uuid,
+            action,
+        )
+
+        # Fire event for typing indicator
+        self._hass.bus.async_fire(
+            f"{DOMAIN}_{EVENT_TYPING_INDICATOR}",
+            {
+                "entry_id": self._entry.entry_id,
+                "source": source,
+                "source_uuid": source_uuid,
+                "action": action.lower(),
+                "timestamp": typing_message.get("timestamp"),
+            },
+        )

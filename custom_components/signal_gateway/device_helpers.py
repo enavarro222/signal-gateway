@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -13,6 +14,17 @@ from .const import DOMAIN
 # Format: {entry_id}_{contact|group}_{identifier}
 DEVICE_IDENTIFIER_PATTERN = re.compile(r"^(.+)_(contact|group)_(.+)$")
 GROUP_INTERNAL_ID_PATTERN = re.compile(r"^.+_group-internal_(.+)$")
+
+
+@dataclass
+class DeviceInfo:
+    """Structured information about a Signal Gateway device extracted from the device registry."""
+
+    entry_id: str
+    type: str  # 'contact' or 'group'
+    identifier: str  # phone number for contact, group ID for group
+    internal_id: str | None = None  # Only for groups
+    name: str | None = None  # Optional device name for better logging
 
 
 def build_contact_device_identifier(entry_id: str, phone_number: str) -> str:
@@ -79,7 +91,7 @@ async def async_get_signal_device(
     return device
 
 
-def extract_device_info(device: dr.DeviceEntry) -> dict[str, str]:
+def extract_device_info(device: dr.DeviceEntry) -> DeviceInfo | None:
     """Extract Signal Gateway device information from device registry entry.
 
     Args:
@@ -104,4 +116,16 @@ def extract_device_info(device: dr.DeviceEntry) -> dict[str, str]:
             match_internal = GROUP_INTERNAL_ID_PATTERN.match(identifier[1])
             if match_internal:
                 device_info["internal_id"] = match_internal.group(1)
-    return device_info
+    if (
+        "entry_id" in device_info
+        and "type" in device_info
+        and "identifier" in device_info
+    ):
+        return DeviceInfo(
+            name=device.name,
+            entry_id=device_info["entry_id"],
+            type=device_info["type"],
+            identifier=device_info["identifier"],
+            internal_id=device_info.get("internal_id"),
+        )
+    return None
