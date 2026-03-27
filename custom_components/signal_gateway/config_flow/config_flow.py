@@ -25,9 +25,7 @@ from .options_flow import SignalGatewayOptionsFlow
 _LOGGER = logging.getLogger(__name__)
 
 
-class SignalGatewayConfigFlow(
-    ConfigFlow, domain=DOMAIN
-):  # pylint: disable=abstract-method
+class SignalGatewayConfigFlow(ConfigFlow, domain=DOMAIN):  # pylint: disable=abstract-method
     """Handle a config flow for Signal Gateway."""
 
     VERSION = 1

@@ -78,7 +78,7 @@ GUI_SERVICE_SCHEMA = {
                         "text_mode": {
                             "name": "Text Mode",
                             "description": (
-                                "Format mode: 'normal' or 'styled' " "(default: normal)"
+                                "Format mode: 'normal' or 'styled' (default: normal)"
                             ),
                         },
                     }
