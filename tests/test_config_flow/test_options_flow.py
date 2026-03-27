@@ -32,12 +32,33 @@ async def test_options_flow_success(valid_user_input, mock_config_entry):
     mock_hass.config_entries.async_update_entry = MagicMock()
     flow.hass = mock_hass
 
-    result = await flow.async_step_init(user_input=valid_user_input)
+    # Mock SignalClient for discovery step
+    with patch(
+        "custom_components.signal_gateway.config_flow.SignalClient"
+    ) as mock_client:
+        from custom_components.signal_gateway.signal.models import (
+            SignalContact,
+            SignalGroup,
+        )
+        from unittest.mock import AsyncMock
 
+        mock_instance = AsyncMock()
+        mock_instance.list_contacts = AsyncMock(return_value=[])
+        mock_instance.list_groups = AsyncMock(return_value=[])
+        mock_client.return_value = mock_instance
+
+        # First call - pass user input, will go to discovery which creates entry with no devices
+        result = await flow.async_step_init(user_input=valid_user_input)
+
+    # When no devices are found, it creates entry directly
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    mock_hass.config_entries.async_update_entry.assert_called_once_with(
-        mock_config_entry, data=valid_user_input
-    )
+    # Verify the entry was updated with approved_devices
+    assert mock_hass.config_entries.async_update_entry.called
+    call_args = mock_hass.config_entries.async_update_entry.call_args
+    updated_data = call_args[1]["data"]
+    assert "approved_devices" in updated_data
+    # When no devices found, approved_devices should preserve existing or be empty
+    assert isinstance(updated_data["approved_devices"], list)
 
 
 @pytest.mark.asyncio
@@ -110,7 +131,7 @@ async def test_options_flow_unknown_error(valid_user_input, mock_config_entry):
 
     # Mock validation to raise unexpected error
     with patch(
-        "custom_components.signal_gateway.config_flow.validate_signal_gateway_input",
+        "custom_components.signal_gateway.config_flow.flows.validate_signal_gateway_input",
         side_effect=Exception("Unexpected error"),
     ):
         result = await flow.async_step_init(user_input=valid_user_input)

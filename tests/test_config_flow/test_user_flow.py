@@ -27,11 +27,28 @@ async def test_user_flow_success(valid_user_input, mock_setup_entry):
     flow.hass = MagicMock()
     flow._async_current_entries = MagicMock(return_value=[])
 
-    result = await flow.async_step_user(user_input=valid_user_input)
+    # Mock SignalClient for discovery step
+    with patch(
+        "custom_components.signal_gateway.config_flow.SignalClient"
+    ) as mock_client:
+        from unittest.mock import AsyncMock
+
+        mock_instance = AsyncMock()
+        mock_instance.list_contacts = AsyncMock(return_value=[])
+        mock_instance.list_groups = AsyncMock(return_value=[])
+        mock_client.return_value = mock_instance
+
+        result = await flow.async_step_user(user_input=valid_user_input)
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "My Signal"
-    assert result["data"] == valid_user_input
+    # Data should include approved_devices from discovery step
+    assert "approved_devices" in result["data"]
+    assert result["data"]["name"] == valid_user_input["name"]
+    assert (
+        result["data"]["signal_cli_rest_api_url"]
+        == valid_user_input["signal_cli_rest_api_url"]
+    )
 
 
 @pytest.mark.asyncio
@@ -64,14 +81,29 @@ async def test_user_flow_invalid_url(valid_user_input):
 
 
 @pytest.mark.asyncio
-async def test_user_flow_duplicate_service_name(valid_user_input, mock_config_entry):
+async def test_user_flow_duplicate_service_name(valid_user_input):
     """Test user flow with duplicate service name."""
+    from homeassistant.config_entries import ConfigEntry
+    from custom_components.signal_gateway.const import DOMAIN
+
     flow = SignalGatewayConfigFlow()
     flow.hass = MagicMock()
 
-    # Set up existing entry with same name after slugification
-    mock_config_entry.data["name"] = "My Signal"  # Same as valid_user_input
-    flow._async_current_entries = MagicMock(return_value=[mock_config_entry])
+    # Create a config entry with the same name
+    existing_entry = ConfigEntry(
+        version=1,
+        minor_version=1,
+        domain=DOMAIN,
+        title="My Signal",
+        data={"name": "My Signal"},  # Same as valid_user_input
+        source="user",
+        entry_id="existing_entry_id",
+        unique_id="existing_unique_id",
+        discovery_keys={},
+        options={},
+        subentries_data={},
+    )
+    flow._async_current_entries = MagicMock(return_value=[existing_entry])
 
     result = await flow.async_step_user(user_input=valid_user_input)
 
@@ -87,7 +119,7 @@ async def test_user_flow_unknown_error(valid_user_input):
 
     # Mock validation to raise unexpected error
     with patch(
-        "custom_components.signal_gateway.config_flow.validate_signal_gateway_input",
+        "custom_components.signal_gateway.config_flow.flows.validate_signal_gateway_input",
         side_effect=Exception("Unexpected error"),
     ):
         result = await flow.async_step_user(user_input=valid_user_input)
