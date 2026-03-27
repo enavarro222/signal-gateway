@@ -433,3 +433,49 @@ class SignalHTTPClient:
         except aiohttp.ClientError as err:
             _LOGGER.error("Error updating contact %s: %s", recipient, err)
             raise
+
+    async def get_contact_avatar(self, uuid: str) -> bytes:
+        """Get contact avatar image.
+
+        Args:
+            uuid: Contact UUID
+
+        Returns:
+            Avatar image bytes
+
+        Raises:
+            aiohttp.ClientError: If the request fails
+        """
+        try:
+            async with self.session.get(
+                f"{self.api_url}/v1/contacts/{self.phone_number}/{uuid}/avatar",
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                response.raise_for_status()
+                return await response.read()
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error fetching contact avatar %s: %s", uuid, err)
+            raise
+
+    async def get_group_avatar(self, group_id: str) -> bytes:
+        """Get group avatar image.
+
+        Args:
+            group_id: Group ID
+
+        Returns:
+            Avatar image bytes
+
+        Raises:
+            aiohttp.ClientError: If the request fails
+        """
+        try:
+            async with self.session.get(
+                f"{self.api_url}/v1/groups/{self.phone_number}/{group_id}/avatar",
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                response.raise_for_status()
+                return await response.read()
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Error fetching group avatar %s: %s", group_id, err)
+            raise
