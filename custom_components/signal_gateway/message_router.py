@@ -11,6 +11,8 @@ from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN, EVENT_SIGNAL_RECEIVED, EVENT_TYPING_INDICATOR
 from .signal import SignalClient
 
+from .coordinator import SignalGroupCoordinator
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -119,37 +121,14 @@ class SignalMessageRouter:
             group_info.get("revision"),
         )
 
-        # Fetch all groups and find the one with matching internal_id
-        # groupId from websocket is actually the internal_id, not the API id
-        try:
-            groups = await self._client.list_groups()
-        except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error("Error fetching group data from API: %s", err)
-            return
-
-        updated_group = next((g for g in groups if g.internal_id == internal_id), None)
-        if not updated_group:
-            _LOGGER.warning(
-                "Could not find group with internal_id %s in API response",
-                internal_id,
-            )
-            return
-        # Future: add a method on the client to fetch a single group by internal_id
-        # the client may cache a mapping of internal_id -> id for efficiency
-
-        # Fire event to update all related entities
-        self._hass.bus.async_fire(
-            f"{DOMAIN}_group_updated",
-            {
-                "entry_id": self._entry.entry_id,
-                "group": updated_group,
-            },
+        # Refresh the corresponding coordinator if it exists
+        coordinators = self._hass.data[DOMAIN][self._entry.entry_id].get(
+            "coordinators", {}
         )
-        _LOGGER.debug(
-            "Fired group update event for %s (internal_id: %s)",
-            updated_group.name,
-            internal_id,
-        )
+        group_coordinator = coordinators.get(f"group_{internal_id}")
+        if group_coordinator:
+            assert isinstance(group_coordinator, SignalGroupCoordinator)
+            await group_coordinator.async_request_refresh()
 
     async def _handle_typing_indicator(self, msg: dict) -> None:
         """Handle a typing indicator notification.

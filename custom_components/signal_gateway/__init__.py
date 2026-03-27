@@ -23,6 +23,7 @@ from .const import (
 from .signal import SignalClient
 from .notify import async_unload_notify_service
 from .avatar_view import setup_avatar_view
+from .coordinator import SignalContactCoordinator, SignalGroupCoordinator
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
@@ -109,17 +110,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
                 return False
 
-    _LOGGER.debug("Singal Gateway integration setup (name: %s)", service_name)
+    _LOGGER.debug("Signal Gateway integration setup (name: %s)", service_name)
 
     # Get default recipients if configured
     recipients_str = entry.data.get(CONF_RECIPIENTS, "")
     default_recipients = parse_recipients(recipients_str)
 
-    # Store the client, service_name, and default recipients
+    # Create coordinators for all contacts and groups
+    coordinators: dict[str, SignalContactCoordinator | SignalGroupCoordinator] = {}
+
+    # Fetch initial data to create coordinators for all contacts and groups
+    contacts = await client.list_contacts()
+    for contact in contacts:
+        coordinator = SignalContactCoordinator(hass, client, entry.entry_id, contact.uuid)
+        await coordinator.async_config_entry_first_refresh()
+        coordinators[f"contact_{contact.uuid}"] = coordinator
+
+    groups = await client.list_groups()
+    for group in groups:
+        coordinator = SignalGroupCoordinator(hass, client, entry.entry_id, group.id)
+        await coordinator.async_config_entry_first_refresh()
+        coordinators[f"group_{group.id}"] = coordinator
+
+    # Store the client, service_name, default recipients, and coordinators
     hass.data[DOMAIN][entry.entry_id] = {
         "client": client,
         "service_name": service_name,
         "default_recipients": default_recipients,
+        "coordinators": coordinators,
     }
 
     # Set up WebSocket listener if enabled

@@ -67,7 +67,8 @@ async def async_setup_entry(
 
     # Get default recipients and approved devices from config
     default_recipients = hass.data[DOMAIN][entry.entry_id].get("default_recipients", [])
-    approved_devices = entry.data.get("approved_devices", [])
+    approved_devices = entry.data.get("approved_devices")
+    coordinators = hass.data[DOMAIN][entry.entry_id].get("coordinators", {})
     service_name = hass.data[DOMAIN][entry.entry_id]["service_name"]
 
     # Load and register the legacy notify service
@@ -85,30 +86,19 @@ async def async_setup_entry(
 
     entities: list[NotifyEntity] = []
 
-    # Filter by approved devices if configured
-    if approved_devices:
-        contacts = [c for c in contacts if f"contact_{c.number}" in approved_devices]
-        groups = [g for g in groups if f"group_{g.id}" in approved_devices]
-
-    # Create notify entities for contacts
     for contact in contacts:
-        entities.append(
-            SignalContactNotifyEntity(
-                client=client,
-                contact=contact,
-                entry_id=entry.entry_id,
-            )
-        )
+        device_id = f"contact_{contact.number}"
+        if approved_devices is None or device_id in approved_devices:
+            coordinator = coordinators.get(f"contact_{contact.uuid}")
+            if coordinator:
+                entities.append(SignalContactNotifyEntity(coordinator))
 
-    # Create notify entities for groups
     for group in groups:
-        entities.append(
-            SignalGroupNotifyEntity(
-                client=client,
-                group=group,
-                entry_id=entry.entry_id,
-            )
-        )
+        device_id = f"group_{group.id}"
+        if approved_devices is None or device_id in approved_devices:
+            coordinator = coordinators.get(f"group_{group.id}")
+            if coordinator:
+                entities.append(SignalGroupNotifyEntity(coordinator))
 
     if async_add_entities:
         async_add_entities(entities, True)

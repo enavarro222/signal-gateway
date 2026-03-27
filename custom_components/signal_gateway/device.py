@@ -1,193 +1,65 @@
-"""Common device and entity base classes for Signal contacts and groups."""
+"""Base entity classes for Signal contacts and groups."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .device_helpers import (
-    build_contact_device_identifier,
-    build_group_device_identifier,
-    build_group_internal_identifier,
-)
-from .signal import SignalClient
+from .coordinator import SignalContactCoordinator, SignalGroupCoordinator
+from .device_helpers import build_group_device_identifier
 from .signal.models import SignalContact, SignalGroup
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from homeassistant.core import HomeAssistant
+    pass
 
 
-class SignalDeviceEntity(ABC):  # pylint: disable=too-few-public-methods
-    """Abstract base class for entities that belong to a Signal contact or group device."""
+class SignalContactBaseEntity(CoordinatorEntity[SignalContactCoordinator]):
+    """Abstract base for all Signal contact entities.
+
+    Provides coordinator-backed contact data and device_info. Subclasses
+    only need to set unique_id and implement their platform-specific logic.
+    """
 
     _attr_has_entity_name = True
 
-    def __init__(
-        self,
-        client: SignalClient,
-        entry_id: str,
-    ) -> None:
-        """Initialize the Signal device entity."""
-        self._client = client
-        self._entry_id = entry_id
+    def __init__(self, coordinator: SignalContactCoordinator) -> None:
+        """Initialize the Signal contact base entity."""
+        super().__init__(coordinator)
 
     @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information to link entities."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._get_device_identifier())},
-            name=self._get_device_name(),
-            manufacturer="Signal Messenger",
-            model=self._get_device_model(),
-        )
-
-    @abstractmethod
-    def _get_device_identifier(self) -> str:
-        """Get the unique device identifier."""
-
-    @abstractmethod
-    def _get_device_name(self) -> str:
-        """Get the device display name."""
-
-    @abstractmethod
-    def _get_device_model(self) -> str:
-        """Get the device model (Contact or Group)."""
-
-
-class ContactDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-methods
-    """Mixin for entities representing a Signal contact device."""
-
-    def __init__(
-        self, contact: SignalContact, client: SignalClient, entry_id: str, **kwargs
-    ) -> None:
-        """Initialize contact device mixin."""
-        super().__init__(client=client, entry_id=entry_id)
-        self._contact = contact
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def _get_device_identifier(self) -> str:
-        """Get the unique device identifier for this contact."""
-        return build_contact_device_identifier(self._entry_id, self._contact.number)
-
-    def _get_device_name(self) -> str:
-        """Get the device display name for this contact."""
-        return self._contact.display_name
-
-    def _get_device_model(self) -> str:
-        """Get the device model."""
-        return "Contact"
-
-
-class GroupDeviceMixin(SignalDeviceEntity):  # pylint: disable=too-few-public-methods
-    """Mixin for entities representing a Signal group device."""
-
-    if TYPE_CHECKING:
-        hass: HomeAssistant
-        async_on_remove: Callable[[Callable[[], None]], None]
-
-    def __init__(
-        self, group: SignalGroup, client: SignalClient, entry_id: str, **kwargs
-    ) -> None:
-        """Initialize group device mixin."""
-        super().__init__(client=client, entry_id=entry_id)
-        self._group = group
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def contact(self) -> SignalContact:
+        """Return the current contact data from the coordinator."""
+        return self.coordinator.data
 
     @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information to link entities.
+    def device_info(self) -> DeviceInfo | None:
+        """Delegate device info to the coordinator."""
+        return self.coordinator.device_info
 
-        For groups, we add both the API id and internal_id as identifiers
-        so we can match websocket messages (which use internal_id).
-        """
-        return DeviceInfo(
-            identifiers={
-                (DOMAIN, self._get_device_identifier()),
-                (DOMAIN, self._get_internal_identifier()),
-            },
-            name=self._get_device_name(),
-            manufacturer="Signal Messenger",
-            model=self._get_device_model(),
-        )
 
-    def _get_device_identifier(self) -> str:
-        """Get the unique device identifier for this group."""
-        return build_group_device_identifier(self._entry_id, self._group.id)
+class SignalGroupBaseEntity(CoordinatorEntity[SignalGroupCoordinator]):
+    """Abstract base for all Signal group entities.
 
-    def _get_internal_identifier(self) -> str:
-        """Get the "internal" unique device identifier for this group."""
-        return build_group_internal_identifier(self._entry_id, self._group.internal_id)
+    Provides coordinator-backed group data and device_info. Registers a
+    listener for group_updated bus events to keep the device registry in sync
+    when a group is renamed via websocket or the text entity.
+    """
 
-    def _get_device_name(self) -> str:
-        """Get the device display name for this group."""
-        return self._group.name
+    _attr_has_entity_name = True
 
-    def _get_device_model(self) -> str:
-        """Get the device model."""
-        return "Group"
+    def __init__(self, coordinator: SignalGroupCoordinator) -> None:
+        """Initialize the Signal group base entity."""
+        super().__init__(coordinator)
 
-    async def async_added_to_hass(self) -> None:
-        """Register event listener when entity is added to hass."""
-        # Call super if it exists (Entity class provides this method)
-        if hasattr(super(), "async_added_to_hass"):
-            await super().async_added_to_hass()  # type: ignore[misc]
+    @property
+    def group(self) -> SignalGroup:
+        """Return the current group data from the coordinator."""
+        return self.coordinator.data
 
-        # Listen for group update events
-        unsubscribe = self.hass.bus.async_listen(
-            f"{DOMAIN}_group_updated",
-            self._handle_group_updated,
-        )
-        self.async_on_remove(unsubscribe)
-
-    async def _handle_group_updated(self, event) -> None:
-        """Handle group updated event."""
-        data = event.data
-        updated_group = data.get("group")
-        if (
-            data.get("entry_id") == self._entry_id
-            and updated_group
-            and updated_group.id == self._group.id
-        ):
-            # Replace the entire group object with fresh data
-            self._update_group(updated_group, write_state=True)
-
-    @abstractmethod
-    def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
-        """Update the group and native value.
-
-        Must be implemented by subclasses to handle group-specific updates.
-
-        Args:
-            group: The updated group object
-            write_state: Whether to write the state to Home Assistant
-        """
-
-    def _update_device_name(self) -> None:
-        """Update the device name in the device registry.
-
-        This should be called when the group name changes to keep the
-        device registry in sync. Only updates if user hasn't set a custom name.
-        """
-        # Check if hass is available (entity is registered)
-        if not hasattr(self, "hass") or self.hass is None:
-            return
-
-        device_registry = dr.async_get(self.hass)
-        device_entry = device_registry.async_get_device(
-            identifiers={(DOMAIN, self._get_device_identifier())}
-        )
-
-        if device_entry and device_entry.name_by_user is None:
-            # Only update if user hasn't set a custom name
-            device_registry.async_update_device(
-                device_entry.id,
-                name=self._group.name,
-            )
+    @property
+    def device_info(self) -> DeviceInfo | None:
+        """Delegate device info to the coordinator."""
+        return self.coordinator.device_info
