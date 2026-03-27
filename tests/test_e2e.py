@@ -30,6 +30,8 @@ def mock_signal_client():
     """Mock SignalClient for e2e tests."""
     with patch("custom_components.signal_gateway.SignalClient") as mock_client_class:
         mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
         mock_client.send_message = AsyncMock(return_value={"timestamp": 123456})
         mock_client.start_listening = AsyncMock()
         mock_client.stop_listening = AsyncMock()

@@ -1,6 +1,7 @@
 """Unit tests for Signal Gateway sensor platform (info entities)."""
 
 import pytest
+from unittest.mock import MagicMock
 
 from custom_components.signal_gateway.sensor import (
     SignalContactInfoEntity,
@@ -11,6 +12,10 @@ from custom_components.signal_gateway.signal.models import (
     GroupPermissions,
     SignalContact,
     SignalGroup,
+)
+from custom_components.signal_gateway.coordinator import (
+    SignalContactCoordinator,
+    SignalGroupCoordinator,
 )
 
 
@@ -54,29 +59,59 @@ def sample_group_full():
     )
 
 
+@pytest.fixture
+def mock_contact_coordinator(sample_contact_full):
+    """Create a mock contact coordinator."""
+    coordinator = MagicMock(spec=SignalContactCoordinator)
+    coordinator.data = sample_contact_full
+    coordinator.entry_id = "test_entry"
+    coordinator.contact_uuid = sample_contact_full.uuid
+    coordinator.device_info = {
+        "identifiers": {("signal_gateway", "test_entry_contact_+1234567890")},
+        "name": "John Doe",
+        "manufacturer": "Signal Messenger",
+        "model": "Contact",
+    }
+    return coordinator
+
+
+@pytest.fixture
+def mock_group_coordinator(sample_group_full):
+    """Create a mock group coordinator."""
+    coordinator = MagicMock(spec=SignalGroupCoordinator)
+    coordinator.data = sample_group_full
+    coordinator.entry_id = "test_entry"
+    coordinator.group_id = sample_group_full.id
+    coordinator.device_info = {
+        "identifiers": {
+            ("signal_gateway", "test_entry_group_group-id-123"),
+            ("signal_gateway", "test_entry_group-internal_internal-123"),
+        },
+        "name": "Test Group",
+        "manufacturer": "Signal Messenger",
+        "model": "Group",
+    }
+    return coordinator
+
+
 # Test SignalContactInfoEntity
 
 
-def test_contact_info_entity_initialization(mock_signal_client, sample_contact_full):
+def test_contact_info_entity_initialization(mock_contact_coordinator, sample_contact_full):
     """Test contact info entity initialization."""
-    entity = SignalContactInfoEntity(
-        mock_signal_client, sample_contact_full, "test_entry"
-    )
+    entity = SignalContactInfoEntity(mock_contact_coordinator)
 
-    assert entity._contact == sample_contact_full
-    assert entity._client == mock_signal_client
-    assert entity._entry_id == "test_entry"
+    assert entity.contact == sample_contact_full
+    assert entity.coordinator.entry_id == "test_entry"
     assert entity.name == "Info"
-    assert entity.unique_id == "test_entry_contact_+1234567890_info"
+    assert entity.unique_id == "test_entry_contact_test-uuid_info"
     assert entity.native_value == "John Doe"
     assert entity.icon == "mdi:account-details"
 
 
-def test_contact_info_entity_attributes_full(mock_signal_client, sample_contact_full):
+def test_contact_info_entity_attributes_full(mock_contact_coordinator, sample_contact_full):
     """Test contact info entity attributes with full data."""
-    entity = SignalContactInfoEntity(
-        mock_signal_client, sample_contact_full, "test_entry"
-    )
+    entity = SignalContactInfoEntity(mock_contact_coordinator)
     attrs = entity.extra_state_attributes
 
     assert attrs["number"] == "+1234567890"
@@ -88,13 +123,14 @@ def test_contact_info_entity_attributes_full(mock_signal_client, sample_contact_
     assert attrs["username"] == "johndoe"
 
 
-def test_contact_info_entity_attributes_minimal(
-    mock_signal_client, sample_contact_minimal
-):
+def test_contact_info_entity_attributes_minimal():
     """Test contact info entity attributes with minimal data."""
-    entity = SignalContactInfoEntity(
-        mock_signal_client, sample_contact_minimal, "test_entry"
-    )
+    contact = SignalContact(number="+9876543210", uuid="minimal-uuid")
+    coordinator = MagicMock(spec=SignalContactCoordinator)
+    coordinator.data = contact
+    coordinator.entry_id = "test_entry"
+
+    entity = SignalContactInfoEntity(coordinator)
     attrs = entity.extra_state_attributes
 
     assert attrs["number"] == "+9876543210"
@@ -104,30 +140,32 @@ def test_contact_info_entity_attributes_minimal(
     assert "username" not in attrs
 
 
-def test_contact_info_entity_with_nickname(mock_signal_client):
+def test_contact_info_entity_with_nickname():
     """Test contact info entity with nickname."""
     contact = SignalContact(
         number="+1234567890",
         uuid="test-uuid",
         nickname=ContactNickname(given_name="Johnny", family_name="D"),
     )
-    entity = SignalContactInfoEntity(mock_signal_client, contact, "test_entry")
+    coordinator = MagicMock(spec=SignalContactCoordinator)
+    coordinator.data = contact
+    coordinator.entry_id = "test_entry"
+
+    entity = SignalContactInfoEntity(coordinator)
     attrs = entity.extra_state_attributes
 
     assert attrs["nickname"] == "Johnny"
     assert attrs["nickname_family"] == "D"
 
 
-def test_contact_info_entity_device_info(mock_signal_client, sample_contact_full):
-    """Test contact info entity device info."""
-    entity = SignalContactInfoEntity(
-        mock_signal_client, sample_contact_full, "test_entry"
-    )
+def test_contact_info_entity_device_info(mock_contact_coordinator):
+    """Test contact info entity device info delegates to coordinator."""
+    entity = SignalContactInfoEntity(mock_contact_coordinator)
     device_info = entity.device_info
 
-    from custom_components.signal_gateway.const import DOMAIN
-
-    assert device_info["identifiers"] == {(DOMAIN, "test_entry_contact_+1234567890")}
+    assert device_info["identifiers"] == {
+        ("signal_gateway", "test_entry_contact_+1234567890")
+    }
     assert device_info["name"] == "John Doe"
     assert device_info["manufacturer"] == "Signal Messenger"
     assert device_info["model"] == "Contact"
@@ -136,22 +174,21 @@ def test_contact_info_entity_device_info(mock_signal_client, sample_contact_full
 # Test SignalGroupInfoEntity
 
 
-def test_group_info_entity_initialization(mock_signal_client, sample_group_full):
+def test_group_info_entity_initialization(mock_group_coordinator, sample_group_full):
     """Test group info entity initialization."""
-    entity = SignalGroupInfoEntity(mock_signal_client, sample_group_full, "test_entry")
+    entity = SignalGroupInfoEntity(mock_group_coordinator)
 
-    assert entity._group == sample_group_full
-    assert entity._client == mock_signal_client
-    assert entity._entry_id == "test_entry"
+    assert entity.group == sample_group_full
+    assert entity.coordinator.entry_id == "test_entry"
     assert entity.name == "Info"
     assert entity.unique_id == "test_entry_group_group-id-123_info"
     assert entity.native_value == "Test Group"
     assert entity.icon == "mdi:account-group-outline"
 
 
-def test_group_info_entity_attributes(mock_signal_client, sample_group_full):
+def test_group_info_entity_attributes(mock_group_coordinator, sample_group_full):
     """Test group info entity attributes."""
-    entity = SignalGroupInfoEntity(mock_signal_client, sample_group_full, "test_entry")
+    entity = SignalGroupInfoEntity(mock_group_coordinator)
     attrs = entity.extra_state_attributes
 
     assert attrs["group_id"] == "group-id-123"
@@ -164,14 +201,19 @@ def test_group_info_entity_attributes(mock_signal_client, sample_group_full):
     assert attrs["permissions"]["add_members"] == "only-admins"
 
 
-def test_group_info_entity_attributes_minimal(mock_signal_client):
+def test_group_info_entity_attributes_minimal():
     """Test group info entity attributes with minimal data."""
     group = SignalGroup(
         id="minimal-group",
         name="Minimal",
         internal_id="internal-minimal",
     )
-    entity = SignalGroupInfoEntity(mock_signal_client, group, "test_entry")
+    coordinator = MagicMock(spec=SignalGroupCoordinator)
+    coordinator.data = group
+    coordinator.entry_id = "test_entry"
+    coordinator.group_id = group.id
+
+    entity = SignalGroupInfoEntity(coordinator)
     attrs = entity.extra_state_attributes
 
     assert attrs["group_id"] == "minimal-group"
@@ -181,17 +223,14 @@ def test_group_info_entity_attributes_minimal(mock_signal_client):
     assert "permissions" not in attrs
 
 
-def test_group_info_entity_device_info(mock_signal_client, sample_group_full):
-    """Test group info entity device info."""
-    entity = SignalGroupInfoEntity(mock_signal_client, sample_group_full, "test_entry")
+def test_group_info_entity_device_info(mock_group_coordinator):
+    """Test group info entity device info delegates to coordinator."""
+    entity = SignalGroupInfoEntity(mock_group_coordinator)
     device_info = entity.device_info
 
-    from custom_components.signal_gateway.const import DOMAIN
-
-    # Groups have two identifiers: API id and internal_id (for websocket matching)
     assert device_info["identifiers"] == {
-        (DOMAIN, "test_entry_group_group-id-123"),
-        (DOMAIN, "test_entry_group-internal_internal-123"),
+        ("signal_gateway", "test_entry_group_group-id-123"),
+        ("signal_gateway", "test_entry_group-internal_internal-123"),
     }
     assert device_info["name"] == "Test Group"
     assert device_info["manufacturer"] == "Signal Messenger"

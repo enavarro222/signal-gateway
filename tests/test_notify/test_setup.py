@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import MagicMock
 
 from custom_components.signal_gateway.notify import async_setup_entry
+from custom_components.signal_gateway.const import DOMAIN
+from custom_components.signal_gateway.data import SignalGatewayEntryData
 
 
 # Test async_setup_entry
@@ -20,11 +22,11 @@ async def test_async_setup_entry_no_client_data(mock_hass):
 @pytest.mark.asyncio
 async def test_async_setup_entry_no_client(mock_hass):
     """Test setup when client is not initialized."""
-    from custom_components.signal_gateway.const import DOMAIN
-
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_id"
-    mock_hass.data[DOMAIN] = {"test_id": {}}  # No client key
+    mock_hass.data[DOMAIN] = {"test_id": SignalGatewayEntryData(
+        client=None, service_name="", default_recipients=[]
+    )}
 
     result = await async_setup_entry(mock_hass, mock_entry, None)
     assert result is False
@@ -33,17 +35,13 @@ async def test_async_setup_entry_no_client(mock_hass):
 @pytest.mark.asyncio
 async def test_async_setup_entry_success(mock_hass, mock_signal_client):
     """Test successful setup."""
-    from custom_components.signal_gateway.const import DOMAIN
-
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_id"
-    mock_hass.data[DOMAIN] = {
-        "test_id": {
-            "client": mock_signal_client,
-            "default_recipients": ["+1234567890"],
-            "service_name": "test_signal",
-        }
-    }
+    mock_hass.data[DOMAIN] = {"test_id": SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=["+1234567890"],
+    )}
 
     result = await async_setup_entry(mock_hass, mock_entry, None)
     assert result is True

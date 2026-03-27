@@ -1,5 +1,13 @@
 """Test configuration for Signal Gateway integration."""
 
+import glob as _glob
+import os as _os
+
+collect_ignore_glob = [
+    _os.path.join(_os.path.dirname(__file__), "._*"),
+    _os.path.join(_os.path.dirname(__file__), "**/._*"),
+]
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from homeassistant.config_entries import ConfigEntry
@@ -206,3 +214,46 @@ def mock_session():
     import aiohttp
 
     return MagicMock(spec=aiohttp.ClientSession)
+
+
+@pytest.fixture
+def mock_contact_coordinator(sample_contact):
+    """Create a mock SignalContactCoordinator."""
+    from custom_components.signal_gateway.coordinator import SignalContactCoordinator
+
+    coord = MagicMock(spec=SignalContactCoordinator)
+    coord.data = sample_contact
+    coord.entry_id = "test_entry_id"
+    coord.contact_uuid = sample_contact.uuid
+    coord.client = AsyncMock()
+    coord.client.send_message = AsyncMock(return_value={"success": True})
+    coord.device_info = {
+        "identifiers": {(DOMAIN, f"test_entry_id_contact_{sample_contact.number}")},
+        "name": sample_contact.name or sample_contact.number,
+        "manufacturer": "Signal Messenger",
+        "model": "Contact",
+    }
+    return coord
+
+
+@pytest.fixture
+def mock_group_coordinator(sample_group):
+    """Create a mock SignalGroupCoordinator."""
+    from custom_components.signal_gateway.coordinator import SignalGroupCoordinator
+
+    coord = MagicMock(spec=SignalGroupCoordinator)
+    coord.data = sample_group
+    coord.entry_id = "test_entry_id"
+    coord.group_id = sample_group.id
+    coord.client = AsyncMock()
+    coord.client.send_message = AsyncMock(return_value={"success": True})
+    coord.device_info = {
+        "identifiers": {
+            (DOMAIN, f"test_entry_id_group_{sample_group.id}"),
+            (DOMAIN, f"test_entry_id_group-internal_{sample_group.internal_id}"),
+        },
+        "name": sample_group.name,
+        "manufacturer": "Signal Messenger",
+        "model": "Group",
+    }
+    return coord

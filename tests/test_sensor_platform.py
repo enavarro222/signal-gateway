@@ -4,16 +4,23 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from custom_components.signal_gateway.data import SignalGatewayEntryData
 from custom_components.signal_gateway.const import DOMAIN
 from custom_components.signal_gateway.sensor import async_setup_entry
 
 
 @pytest.fixture
-def mock_hass_sensor(mock_hass, mock_signal_client, mock_entry):
+def mock_hass_sensor(mock_hass, mock_signal_client, mock_entry, mock_contact_coordinator, mock_group_coordinator, sample_contact, sample_group):
     """Create a mock Home Assistant instance configured for sensor tests."""
-    mock_hass.data[DOMAIN][mock_entry.entry_id] = {
-        "client": mock_signal_client,
-    }
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+        coordinators={
+            f"contact_{sample_contact.uuid}": mock_contact_coordinator,
+            f"group_{sample_group.internal_id}": mock_group_coordinator,
+        },
+    )
     return mock_hass
 
 

@@ -11,6 +11,7 @@ from custom_components.signal_gateway.avatar_view import (
     setup_avatar_view,
     validate_avatar_token,
 )
+from custom_components.signal_gateway.data import SignalGatewayEntryData
 from custom_components.signal_gateway.const import DOMAIN
 
 
@@ -123,7 +124,9 @@ async def test_avatar_view_contact_success(mock_request, mock_hass, mock_avatar_
     device_id = "contact_123"
 
     # Setup hass data
-    mock_hass.data[DOMAIN] = {entry_id: {"client": mock_avatar_client}}
+    entry_data = MagicMock(spec=SignalGatewayEntryData)
+    entry_data.client = mock_avatar_client
+    mock_hass.data[DOMAIN] = {entry_id: entry_data}
 
     # Generate valid token
     token, _ = generate_avatar_token(mock_hass, entry_id, device_id)
@@ -147,7 +150,9 @@ async def test_avatar_view_group_success(mock_request, mock_hass, mock_avatar_cl
     device_id = "group_456"
 
     # Setup hass data
-    mock_hass.data[DOMAIN] = {entry_id: {"client": mock_avatar_client}}
+    entry_data = MagicMock(spec=SignalGatewayEntryData)
+    entry_data.client = mock_avatar_client
+    mock_hass.data[DOMAIN] = {entry_id: entry_data}
 
     # Generate valid token
     token, _ = generate_avatar_token(mock_hass, entry_id, device_id)
@@ -243,7 +248,9 @@ async def test_avatar_view_invalid_device_type(
     device_id = "device_123"
 
     # Setup hass data
-    mock_hass.data[DOMAIN] = {entry_id: {"client": mock_avatar_client}}
+    entry_data = MagicMock(spec=SignalGatewayEntryData)
+    entry_data.client = mock_avatar_client
+    mock_hass.data[DOMAIN] = {entry_id: entry_data}
 
     # Generate valid token
     token, _ = generate_avatar_token(mock_hass, entry_id, device_id)
@@ -263,7 +270,9 @@ async def test_avatar_view_client_error(mock_request, mock_hass, mock_avatar_cli
     device_id = "contact_123"
 
     # Setup hass data
-    mock_hass.data[DOMAIN] = {entry_id: {"client": mock_avatar_client}}
+    entry_data = MagicMock(spec=SignalGatewayEntryData)
+    entry_data.client = mock_avatar_client
+    mock_hass.data[DOMAIN] = {entry_id: entry_data}
 
     # Make client raise an exception
     mock_avatar_client.get_contact_avatar.side_effect = Exception("API Error")

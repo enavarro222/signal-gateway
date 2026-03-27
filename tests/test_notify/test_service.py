@@ -233,18 +233,17 @@ async def test_send_message_with_formatted_content(
 @pytest.mark.asyncio
 async def test_service_handler_extracts_nested_data(mock_hass, mock_signal_client):
     """Test that service handler properly extracts parameters from nested 'data' dict."""
+    from custom_components.signal_gateway.data import SignalGatewayEntryData
     from custom_components.signal_gateway.const import DOMAIN
     from custom_components.signal_gateway.notify import async_setup_entry
 
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_id"
-    mock_hass.data[DOMAIN] = {
-        "test_id": {
-            "client": mock_signal_client,
-            "default_recipients": [],
-            "service_name": "test_signal",
-        }
-    }
+    mock_hass.data[DOMAIN] = {"test_id": SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+    )}
 
     # Setup the service
     await async_setup_entry(mock_hass, mock_entry, None)

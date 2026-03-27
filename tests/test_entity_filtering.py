@@ -1,12 +1,22 @@
 """Tests for entity filtering based on approved devices."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntry
 
-from custom_components.signal_gateway.const import CONF_APPROVED_DEVICES, DOMAIN
+from custom_components.signal_gateway.const import CONF_APPROVED_DEVICES
+from custom_components.signal_gateway.data import SignalGatewayEntryData
+from custom_components.signal_gateway.const import DOMAIN
 from custom_components.signal_gateway.signal.models import SignalContact, SignalGroup
+
+
+def _make_coord(data, entry_id="test_entry_id"):
+    """Create a minimal mock coordinator with the given data."""
+    coord = MagicMock()
+    coord.data = data
+    coord.entry_id = entry_id
+    return coord
 
 
 @pytest.fixture
@@ -117,15 +127,26 @@ async def test_sensor_platform_filters_by_approved_devices(
     mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
     mock_client.list_groups = AsyncMock(return_value=mock_groups)
 
+    coordinators = {
+        f"contact_{mock_contacts[0].uuid}": _make_coord(mock_contacts[0]),
+        f"contact_{mock_contacts[1].uuid}": _make_coord(mock_contacts[1]),
+        f"group_{mock_groups[0].internal_id}": _make_coord(mock_groups[0]),
+        f"group_{mock_groups[1].internal_id}": _make_coord(mock_groups[1]),
+    }
+
     mock_hass = MagicMock()
     mock_hass.data = {
         DOMAIN: {
-            mock_config_entry_with_approved.entry_id: {"client": mock_client},
+            mock_config_entry_with_approved.entry_id: SignalGatewayEntryData(
+                client=mock_client,
+                service_name="test_signal",
+                default_recipients=[],
+                coordinators=coordinators,
+            ),
         },
     }
 
-    # Mock async_add_entities with AsyncMock
-    mock_add_entities = AsyncMock()
+    mock_add_entities = MagicMock()
 
     # Call setup
     await async_setup_entry(
@@ -137,13 +158,8 @@ async def test_sensor_platform_filters_by_approved_devices(
     entities_added = mock_add_entities.call_args[0][0]
     assert len(entities_added) == 2
     # Verify the correct entities were created
-    assert any(
-        hasattr(e, "_contact") and e._contact.number == "+1234567890"
-        for e in entities_added
-    )
-    assert any(
-        hasattr(e, "_group") and e._group.id == "group123" for e in entities_added
-    )
+    assert any(e.contact.number == "+1234567890" for e in entities_added if hasattr(e, "contact"))
+    assert any(e.group.id == "group123" for e in entities_added if hasattr(e, "group"))
 
 
 async def test_sensor_platform_creates_all_when_no_approval_list(
@@ -156,15 +172,26 @@ async def test_sensor_platform_creates_all_when_no_approval_list(
     mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
     mock_client.list_groups = AsyncMock(return_value=mock_groups)
 
+    coordinators = {
+        f"contact_{mock_contacts[0].uuid}": _make_coord(mock_contacts[0]),
+        f"contact_{mock_contacts[1].uuid}": _make_coord(mock_contacts[1]),
+        f"group_{mock_groups[0].internal_id}": _make_coord(mock_groups[0]),
+        f"group_{mock_groups[1].internal_id}": _make_coord(mock_groups[1]),
+    }
+
     mock_hass = MagicMock()
     mock_hass.data = {
         DOMAIN: {
-            mock_config_entry_without_approved.entry_id: {"client": mock_client},
+            mock_config_entry_without_approved.entry_id: SignalGatewayEntryData(
+                client=mock_client,
+                service_name="test_signal",
+                default_recipients=[],
+                coordinators=coordinators,
+            ),
         },
     }
 
-    # Mock async_add_entities with AsyncMock
-    mock_add_entities = AsyncMock()
+    mock_add_entities = MagicMock()
 
     # Call setup
     await async_setup_entry(
@@ -193,30 +220,45 @@ async def test_binary_sensor_platform_filters_by_approved_devices(
     mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
     mock_client.list_groups = AsyncMock(return_value=mock_groups)
 
+    coordinators = {
+        f"contact_{mock_contacts[0].uuid}": _make_coord(mock_contacts[0]),
+        f"contact_{mock_contacts[1].uuid}": _make_coord(mock_contacts[1]),
+        f"group_{mock_groups[0].internal_id}": _make_coord(mock_groups[0]),
+        f"group_{mock_groups[1].internal_id}": _make_coord(mock_groups[1]),
+    }
+
     mock_hass = MagicMock()
     mock_hass.data = {
         DOMAIN: {
-            entry.entry_id: {"client": mock_client},
+            entry.entry_id: SignalGatewayEntryData(
+                client=mock_client,
+                service_name="test_signal",
+                default_recipients=[],
+                coordinators=coordinators,
+            ),
         },
     }
 
-    # Mock async_add_entities with AsyncMock
-    mock_add_entities = AsyncMock()
+    mock_add_entities = MagicMock()
 
     # Call setup
     await async_setup_entry(mock_hass, entry, mock_add_entities)
 
-    # Should only create 1 entity
+    # Should only create 1 entity (approved contact only)
     mock_add_entities.assert_called_once()
     entities_added = mock_add_entities.call_args[0][0]
     assert len(entities_added) == 1
-    assert hasattr(entities_added[0], "_contact")
-    assert entities_added[0]._contact.number == "+1234567890"
+    assert entities_added[0].contact.number == "+1234567890"
 
 
-async def test_notify_platform_filters_by_approved_devices(mock_contacts, mock_groups):
+@patch("custom_components.signal_gateway.notify.async_set_service_schema")
+@patch("custom_components.signal_gateway.notify.async_load_notify_service")
+async def test_notify_platform_filters_by_approved_devices(
+    mock_load_service, mock_set_schema, mock_contacts, mock_groups
+):
     """Test notify platform only creates entities for approved devices."""
     from custom_components.signal_gateway.notify import async_setup_entry
+    from custom_components.signal_gateway.notify.entities import SignalGroupNotifyEntity
 
     entry = MagicMock(spec=ConfigEntry)
     entry.entry_id = "test_entry_id"
@@ -228,20 +270,25 @@ async def test_notify_platform_filters_by_approved_devices(mock_contacts, mock_g
     mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
     mock_client.list_groups = AsyncMock(return_value=mock_groups)
 
+    coordinators = {
+        f"group_{mock_groups[0].internal_id}": _make_coord(mock_groups[0]),
+        f"group_{mock_groups[1].internal_id}": _make_coord(mock_groups[1]),
+    }
+
     mock_hass = MagicMock()
     mock_hass.data = {
         DOMAIN: {
-            entry.entry_id: {
-                "client": mock_client,
-                "service_name": "test_signal",
-                "default_recipients": [],
-            },
+            entry.entry_id: SignalGatewayEntryData(
+                client=mock_client,
+                service_name="test_signal",
+                default_recipients=[],
+                coordinators=coordinators,
+            ),
         },
     }
     mock_hass.services = MagicMock()
 
-    # Mock async_add_entities with AsyncMock
-    mock_add_entities = AsyncMock()
+    mock_add_entities = MagicMock()
 
     # Call setup
     result = await async_setup_entry(mock_hass, entry, mock_add_entities)
@@ -253,7 +300,7 @@ async def test_notify_platform_filters_by_approved_devices(mock_contacts, mock_g
     mock_add_entities.assert_called_once()
     entities_added = mock_add_entities.call_args[0][0]
     assert len(entities_added) == 2
-    assert all(hasattr(e, "_group") for e in entities_added)
+    assert all(isinstance(e, SignalGroupNotifyEntity) for e in entities_added)
 
 
 async def test_empty_approved_devices_list(mock_contacts, mock_groups):
@@ -273,12 +320,15 @@ async def test_empty_approved_devices_list(mock_contacts, mock_groups):
     mock_hass = MagicMock()
     mock_hass.data = {
         DOMAIN: {
-            entry.entry_id: {"client": mock_client},
+            entry.entry_id: SignalGatewayEntryData(
+                client=mock_client,
+                service_name="test_signal",
+                default_recipients=[],
+            ),
         },
     }
 
-    # Mock async_add_entities with AsyncMock
-    mock_add_entities = AsyncMock()
+    mock_add_entities = MagicMock()
 
     # Call setup
     await async_setup_entry(mock_hass, entry, mock_add_entities)

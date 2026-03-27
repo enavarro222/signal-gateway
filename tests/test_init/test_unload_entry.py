@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.signal_gateway import async_unload_entry
+from custom_components.signal_gateway.data import SignalGatewayEntryData
 from custom_components.signal_gateway.const import DOMAIN
 
 
@@ -13,10 +14,11 @@ async def test_unload_entry_success(mock_hass, mock_entry_minimal):
     mock_client = MagicMock()
     mock_client.stop_listening = AsyncMock()
 
-    mock_hass.data[DOMAIN]["test_entry_id"] = {
-        "client": mock_client,
-        "service_name": "test_signal",
-    }
+    mock_hass.data[DOMAIN]["test_entry_id"] = SignalGatewayEntryData(
+        client=mock_client,
+        service_name="test_signal",
+        default_recipients=[],
+    )
 
     with patch(
         "custom_components.signal_gateway.async_unload_notify_service"
@@ -33,9 +35,11 @@ async def test_unload_entry_success(mock_hass, mock_entry_minimal):
 @pytest.mark.asyncio
 async def test_unload_entry_no_client(mock_hass, mock_entry_minimal):
     """Test unload when no client exists."""
-    mock_hass.data[DOMAIN]["test_entry_id"] = {
-        "service_name": "test_signal",
-    }
+    mock_hass.data[DOMAIN]["test_entry_id"] = SignalGatewayEntryData(
+        client=None,
+        service_name="test_signal",
+        default_recipients=[],
+    )
 
     with patch(
         "custom_components.signal_gateway.async_unload_notify_service"
@@ -70,10 +74,11 @@ async def test_unload_entry_platform_fails(mock_hass, mock_entry_minimal):
     mock_client = MagicMock()
     mock_client.stop_listening = AsyncMock()
 
-    mock_hass.data[DOMAIN]["test_entry_id"] = {
-        "client": mock_client,
-        "service_name": "test_signal",
-    }
+    mock_hass.data[DOMAIN]["test_entry_id"] = SignalGatewayEntryData(
+        client=mock_client,
+        service_name="test_signal",
+        default_recipients=[],
+    )
     mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
 
     with patch(

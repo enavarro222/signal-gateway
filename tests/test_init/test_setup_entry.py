@@ -25,15 +25,17 @@ async def test_setup_entry_basic_without_websocket(mock_hass, mock_entry):
         "custom_components.signal_gateway.SignalClient"
     ) as mock_client_class:
         mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
         mock_client_class.return_value = mock_client
 
         result = await async_setup_entry(mock_hass, mock_entry)
 
         assert result is True
         assert "test_entry_id" in mock_hass.data[DOMAIN]
-        assert mock_hass.data[DOMAIN]["test_entry_id"]["client"] == mock_client
-        assert mock_hass.data[DOMAIN]["test_entry_id"]["service_name"] == "test_signal"
-        assert mock_hass.data[DOMAIN]["test_entry_id"]["default_recipients"] == [
+        assert mock_hass.data[DOMAIN]["test_entry_id"].client == mock_client
+        assert mock_hass.data[DOMAIN]["test_entry_id"].service_name == "test_signal"
+        assert mock_hass.data[DOMAIN]["test_entry_id"].default_recipients == [
             "+9876543210",
             "+5551234567",
         ]
@@ -50,6 +52,8 @@ async def test_setup_entry_with_websocket(mock_hass, mock_entry):
         "custom_components.signal_gateway.SignalClient"
     ) as mock_client_class:
         mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
         mock_client.set_message_handler = MagicMock()
         mock_client.start_listening = AsyncMock()
         mock_client_class.return_value = mock_client
@@ -72,12 +76,17 @@ async def test_setup_entry_without_name_uses_domain(mock_hass, mock_entry):
 
     with patch("custom_components.signal_gateway.async_get_clientsession"), patch(
         "custom_components.signal_gateway.SignalClient"
-    ):
+    ) as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
+        mock_client_class.return_value = mock_client
+
         result = await async_setup_entry(mock_hass, mock_entry)
 
         assert result is True
         assert (
-            mock_hass.data[DOMAIN]["test_entry_id"]["service_name"] == "signal_gateway"
+            mock_hass.data[DOMAIN]["test_entry_id"].service_name == "signal_gateway"
         )
 
 
@@ -93,20 +102,28 @@ async def test_setup_entry_without_recipients(mock_hass, mock_entry):
 
     with patch("custom_components.signal_gateway.async_get_clientsession"), patch(
         "custom_components.signal_gateway.SignalClient"
-    ):
+    ) as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
+        mock_client_class.return_value = mock_client
+
         result = await async_setup_entry(mock_hass, mock_entry)
 
         assert result is True
-        assert mock_hass.data[DOMAIN]["test_entry_id"]["default_recipients"] == []
+        assert mock_hass.data[DOMAIN]["test_entry_id"].default_recipients == []
 
 
 @pytest.mark.asyncio
 async def test_setup_entry_duplicate_service_name(mock_hass, mock_entry):
     """Test that duplicate service names are rejected."""
     # Add an existing entry with the same service name
-    mock_hass.data[DOMAIN]["existing_entry_id"] = {
-        "service_name": "test_signal",
-    }
+    from custom_components.signal_gateway.data import SignalGatewayEntryData
+    mock_hass.data[DOMAIN]["existing_entry_id"] = SignalGatewayEntryData(
+        client=None,
+        service_name="test_signal",
+        default_recipients=[],
+    )
 
     with patch("custom_components.signal_gateway.async_get_clientsession"), patch(
         "custom_components.signal_gateway.SignalClient"
@@ -124,6 +141,8 @@ async def test_setup_entry_websocket_message_handler(mock_hass, mock_entry):
         "custom_components.signal_gateway.SignalClient"
     ) as mock_client_class:
         mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
         mock_client.set_message_handler = MagicMock()
         mock_client.start_listening = AsyncMock()
         mock_client_class.return_value = mock_client
@@ -155,6 +174,8 @@ async def test_setup_entry_websocket_message_handler_error(mock_hass, mock_entry
         "custom_components.signal_gateway.SignalClient"
     ) as mock_client_class:
         mock_client = MagicMock()
+        mock_client.list_contacts = AsyncMock(return_value=[])
+        mock_client.list_groups = AsyncMock(return_value=[])
         mock_client.set_message_handler = MagicMock()
         mock_client.start_listening = AsyncMock()
         mock_client_class.return_value = mock_client

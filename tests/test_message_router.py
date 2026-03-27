@@ -2,8 +2,12 @@
 
 # pylint: disable=redefined-outer-name,protected-access
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
+from custom_components.signal_gateway.coordinator import SignalGroupCoordinator
+from custom_components.signal_gateway.data import SignalGatewayEntryData
 from custom_components.signal_gateway.message_router import SignalMessageRouter
 from custom_components.signal_gateway.const import (
     DOMAIN,
@@ -15,6 +19,11 @@ from custom_components.signal_gateway.const import (
 @pytest.fixture
 def message_router(mock_hass, mock_entry, mock_signal_client):
     """Create a SignalMessageRouter instance."""
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+    )
     return SignalMessageRouter(
         hass=mock_hass,
         entry=mock_entry,
@@ -238,26 +247,31 @@ async def test_route_message_received_message(
 async def test_route_message_group_update(
     message_router,
     mock_hass,
+    mock_entry,
     mock_signal_client,
     group_update_message_data,
     sample_group,
 ):
-    """Test route_message routes group update correctly."""
-    # Setup mock client to return the updated group
+    """Test route_message routes group update by refreshing the group coordinator."""
+    # Setup coordinator for the updated group
     sample_group.internal_id = "internal-group-id-123"
-    mock_signal_client.list_groups.return_value = [sample_group]
+    mock_coordinator = MagicMock(spec=SignalGroupCoordinator)
+    mock_coordinator.async_request_refresh = AsyncMock()
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+        coordinators={"group_internal-group-id-123": mock_coordinator},
+    )
 
     await message_router.route_message(group_update_message_data)
 
-    # Verify groups were fetched
-    mock_signal_client.list_groups.assert_called_once()
+    # API not called; coordinator is refreshed directly
+    mock_signal_client.list_groups.assert_not_called()
+    mock_coordinator.async_request_refresh.assert_called_once()
 
-    # Verify group_updated event was fired
-    assert mock_hass.bus.async_fire.call_count == 1
-    call_args = mock_hass.bus.async_fire.call_args
-    assert call_args[0][0] == f"{DOMAIN}_group_updated"
-    assert call_args[0][1]["entry_id"] == "test_entry_123"
-    assert call_args[0][1]["group"] == sample_group
+    # No additional events fired
+    mock_hass.bus.async_fire.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -292,7 +306,7 @@ async def test_route_message_unrecognized(
 
 @pytest.mark.asyncio
 async def test_route_message_handler_error(message_router, mock_hass):
-    """Test route_message handles handler errors gracefully."""
+    """Test route_message propagates handler errors (no exception suppression)."""
     # Create a message that will be classified but cause an error in the handler
     msg = {
         "envelope": {
@@ -305,10 +319,11 @@ async def test_route_message_handler_error(message_router, mock_hass):
     # Make async_fire raise an exception
     mock_hass.bus.async_fire.side_effect = Exception("Event bus error")
 
-    # Should not raise exception
-    await message_router.route_message(msg)
+    # Exception propagates from the handler
+    with pytest.raises(Exception, match="Event bus error"):
+        await message_router.route_message(msg)
 
-    # Event bus should have been called
+    # Event bus was called (before raising)
     mock_hass.bus.async_fire.assert_called_once()
 
 
@@ -332,10 +347,9 @@ async def test_handle_received_message(
 
 @pytest.mark.asyncio
 async def test_handle_group_update_success(
-    message_router, mock_hass, mock_signal_client, sample_group
+    message_router, mock_hass, mock_entry, mock_signal_client, sample_group
 ):
-    """Test _handle_group_update successfully updates group data."""
-    # Setup message data
+    """Test _handle_group_update refreshes the coordinator for the updated group."""
     msg = {
         "envelope": {
             "dataMessage": {
@@ -348,28 +362,31 @@ async def test_handle_group_update_success(
         },
     }
 
-    # Setup mock client to return the updated group
     sample_group.internal_id = "internal-abc"
-    mock_signal_client.list_groups.return_value = [sample_group]
+    mock_coordinator = MagicMock(spec=SignalGroupCoordinator)
+    mock_coordinator.async_request_refresh = AsyncMock()
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+        coordinators={"group_internal-abc": mock_coordinator},
+    )
 
     await message_router._handle_group_update(msg)
 
-    # Verify groups were fetched
-    mock_signal_client.list_groups.assert_called_once()
+    # API not called; coordinator refreshed directly
+    mock_signal_client.list_groups.assert_not_called()
+    mock_coordinator.async_request_refresh.assert_called_once()
 
-    # Verify event was fired with correct data
-    mock_hass.bus.async_fire.assert_called_once()
-    call_args = mock_hass.bus.async_fire.call_args
-    assert call_args[0][0] == f"{DOMAIN}_group_updated"
-    assert call_args[0][1]["entry_id"] == "test_entry_123"
-    assert call_args[0][1]["group"] == sample_group
+    # No event fired
+    mock_hass.bus.async_fire.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_handle_group_update_group_not_found(
     message_router, mock_hass, mock_signal_client, sample_group
 ):
-    """Test _handle_group_update when group is not found in API response."""
+    """Test _handle_group_update when no coordinator exists for the group."""
     msg = {
         "envelope": {
             "dataMessage": {
@@ -382,24 +399,21 @@ async def test_handle_group_update_group_not_found(
         },
     }
 
-    # Return a group with different internal_id
-    sample_group.internal_id = "different-id"
-    mock_signal_client.list_groups.return_value = [sample_group]
-
+    # No coordinator registered for this group ID (fixture uses empty coordinators)
     await message_router._handle_group_update(msg)
 
-    # Verify groups were fetched
-    mock_signal_client.list_groups.assert_called_once()
+    # API not called
+    mock_signal_client.list_groups.assert_not_called()
 
-    # No event should be fired when group is not found
+    # No event fired when coordinator not found
     mock_hass.bus.async_fire.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_handle_group_update_api_error(
-    message_router, mock_hass, mock_signal_client
+async def test_handle_group_update_coordinator_refresh_error(
+    message_router, mock_hass, mock_entry, mock_signal_client
 ):
-    """Test _handle_group_update handles API errors gracefully."""
+    """Test _handle_group_update when coordinator refresh raises an exception."""
     msg = {
         "envelope": {
             "dataMessage": {
@@ -412,23 +426,29 @@ async def test_handle_group_update_api_error(
         },
     }
 
-    # Make API call raise an exception
-    mock_signal_client.list_groups.side_effect = Exception("API connection failed")
+    mock_coordinator = MagicMock(spec=SignalGroupCoordinator)
+    mock_coordinator.async_request_refresh = AsyncMock(
+        side_effect=Exception("Refresh failed")
+    )
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+        coordinators={"group_internal-123": mock_coordinator},
+    )
 
-    await message_router._handle_group_update(msg)
+    # Exception from coordinator.async_request_refresh propagates
+    with pytest.raises(Exception, match="Refresh failed"):
+        await message_router._handle_group_update(msg)
 
-    # Verify API was called
-    mock_signal_client.list_groups.assert_called_once()
-
-    # No event should be fired when API fails
     mock_hass.bus.async_fire.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_handle_group_update_empty_groups_list(
+async def test_handle_group_update_no_coordinator(
     message_router, mock_hass, mock_signal_client
 ):
-    """Test _handle_group_update when API returns empty groups list."""
+    """Test _handle_group_update when no coordinator is registered for the group."""
     msg = {
         "envelope": {
             "dataMessage": {
@@ -441,9 +461,7 @@ async def test_handle_group_update_empty_groups_list(
         },
     }
 
-    # Return empty list
-    mock_signal_client.list_groups.return_value = []
-
+    # Fixture uses empty coordinators — no coordinator for "group_internal-123"
     await message_router._handle_group_update(msg)
 
     # No event should be fired
@@ -539,13 +557,28 @@ async def test_router_initialization(mock_hass, mock_entry, mock_signal_client):
 
 @pytest.mark.asyncio
 async def test_multiple_messages_in_sequence(
-    message_router, mock_hass, received_message_data, mock_signal_client, sample_group
+    message_router, mock_hass, mock_entry, received_message_data, mock_signal_client, sample_group
 ):
     """Test handling multiple messages in sequence."""
     # First message: received message
     await message_router.route_message(received_message_data)
 
-    # Second message: group update
+    # Verify received message event fired
+    assert mock_hass.bus.async_fire.call_count == 1
+    first_call = mock_hass.bus.async_fire.call_args_list[0]
+    assert first_call[0][0] == EVENT_SIGNAL_RECEIVED
+
+    # Second message: group update — setup coordinator
+    sample_group.internal_id = "internal-123"
+    mock_coordinator = MagicMock(spec=SignalGroupCoordinator)
+    mock_coordinator.async_request_refresh = AsyncMock()
+    mock_hass.data[DOMAIN][mock_entry.entry_id] = SignalGatewayEntryData(
+        client=mock_signal_client,
+        service_name="test_signal",
+        default_recipients=[],
+        coordinators={"group_internal-123": mock_coordinator},
+    )
+
     group_update = {
         "envelope": {
             "dataMessage": {
@@ -557,18 +590,8 @@ async def test_multiple_messages_in_sequence(
             },
         },
     }
-    sample_group.internal_id = "internal-123"
-    mock_signal_client.list_groups.return_value = [sample_group]
-
     await message_router.route_message(group_update)
 
-    # Verify both events were fired
-    assert mock_hass.bus.async_fire.call_count == 2
-
-    # Check first call was for received message
-    first_call = mock_hass.bus.async_fire.call_args_list[0]
-    assert first_call[0][0] == EVENT_SIGNAL_RECEIVED
-
-    # Check second call was for group update
-    second_call = mock_hass.bus.async_fire.call_args_list[1]
-    assert second_call[0][0] == f"{DOMAIN}_group_updated"
+    # Only the received-message event was fired; group update uses coordinator refresh
+    assert mock_hass.bus.async_fire.call_count == 1
+    mock_coordinator.async_request_refresh.assert_called_once()

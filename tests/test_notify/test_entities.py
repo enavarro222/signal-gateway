@@ -1,76 +1,79 @@
 """Unit tests for Signal Gateway notify entities."""
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.signal_gateway.notify.entities import (
     SignalContactNotifyEntity,
     SignalGroupNotifyEntity,
 )
+from custom_components.signal_gateway.coordinator import (
+    SignalContactCoordinator,
+    SignalGroupCoordinator,
+)
+from custom_components.signal_gateway.const import DOMAIN
 
 
 # Test SignalContactNotifyEntity
 
 
-def test_contact_notify_entity_initialization(mock_signal_client, sample_contact):
+def test_contact_notify_entity_initialization(mock_contact_coordinator, sample_contact):
     """Test contact notify entity initialization."""
-    entity = SignalContactNotifyEntity(mock_signal_client, sample_contact, "test_entry")
+    entity = SignalContactNotifyEntity(mock_contact_coordinator)
 
-    assert entity._contact == sample_contact
-    assert entity._client == mock_signal_client
-    assert entity._entry_id == "test_entry"
+    assert entity.contact == sample_contact
+    assert entity.coordinator.entry_id == "test_entry_id"
     assert entity.name == "Notify"
-    assert entity.unique_id == "test_entry_contact_+1234567890_notify"
+    # unique_id now uses uuid (not phone number)
+    assert entity.unique_id == f"test_entry_id_contact_{sample_contact.uuid}_notify"
     assert entity.icon == "mdi:message-text"
 
 
-async def test_contact_notify_entity_send_message(mock_signal_client, sample_contact):
+async def test_contact_notify_entity_send_message(mock_contact_coordinator, sample_contact):
     """Test sending message via contact notify entity."""
-    entity = SignalContactNotifyEntity(mock_signal_client, sample_contact, "test_entry")
+    entity = SignalContactNotifyEntity(mock_contact_coordinator)
 
     await entity.async_send_message(message="Hello", title="Greeting")
 
-    mock_signal_client.send_message.assert_called_once_with(
-        target="+1234567890",
+    mock_contact_coordinator.client.send_message.assert_called_once_with(
+        target=sample_contact.number,
         message="Greeting\n\nHello",
         base64_attachments=[],
     )
 
 
 async def test_contact_notify_entity_send_message_no_title(
-    mock_signal_client, sample_contact
+    mock_contact_coordinator, sample_contact
 ):
     """Test sending message without title."""
-    entity = SignalContactNotifyEntity(mock_signal_client, sample_contact, "test_entry")
+    entity = SignalContactNotifyEntity(mock_contact_coordinator)
 
     await entity.async_send_message(message="Hello")
 
-    mock_signal_client.send_message.assert_called_once_with(
-        target="+1234567890",
+    mock_contact_coordinator.client.send_message.assert_called_once_with(
+        target=sample_contact.number,
         message="Hello",
         base64_attachments=[],
     )
 
 
 async def test_contact_notify_entity_send_message_error(
-    mock_signal_client, sample_contact
+    mock_contact_coordinator, sample_contact
 ):
     """Test error handling when sending message."""
-    entity = SignalContactNotifyEntity(mock_signal_client, sample_contact, "test_entry")
-    mock_signal_client.send_message.side_effect = Exception("Send failed")
+    mock_contact_coordinator.client.send_message.side_effect = Exception("Send failed")
+    entity = SignalContactNotifyEntity(mock_contact_coordinator)
 
     with pytest.raises(Exception, match="Send failed"):
         await entity.async_send_message(message="Hello")
 
 
-def test_contact_notify_entity_device_info(mock_signal_client, sample_contact):
-    """Test contact notify entity device info."""
-    entity = SignalContactNotifyEntity(mock_signal_client, sample_contact, "test_entry")
+def test_contact_notify_entity_device_info(mock_contact_coordinator, sample_contact):
+    """Test contact notify entity device info delegates to coordinator."""
+    entity = SignalContactNotifyEntity(mock_contact_coordinator)
     device_info = entity.device_info
 
-    from custom_components.signal_gateway.const import DOMAIN
-
-    assert device_info["identifiers"] == {(DOMAIN, "test_entry_contact_+1234567890")}
-    assert device_info["name"] == "John Doe"
+    assert (DOMAIN, f"test_entry_id_contact_{sample_contact.number}") in device_info["identifiers"]
     assert device_info["manufacturer"] == "Signal Messenger"
     assert device_info["model"] == "Contact"
 
@@ -78,67 +81,59 @@ def test_contact_notify_entity_device_info(mock_signal_client, sample_contact):
 # Test SignalGroupNotifyEntity
 
 
-def test_group_notify_entity_initialization(mock_signal_client, sample_group):
+def test_group_notify_entity_initialization(mock_group_coordinator, sample_group):
     """Test group notify entity initialization."""
-    entity = SignalGroupNotifyEntity(mock_signal_client, sample_group, "test_entry")
+    entity = SignalGroupNotifyEntity(mock_group_coordinator)
 
-    assert entity._group == sample_group
-    assert entity._client == mock_signal_client
-    assert entity._entry_id == "test_entry"
+    assert entity.group == sample_group
+    assert entity.coordinator.entry_id == "test_entry_id"
     assert entity.name == "Notify"
-    assert entity.unique_id == "test_entry_group_group-id-123_notify"
+    assert entity.unique_id == f"test_entry_id_group_{sample_group.id}_notify"
     assert entity.icon == "mdi:message-text"
 
 
-async def test_group_notify_entity_send_message(mock_signal_client, sample_group):
+async def test_group_notify_entity_send_message(mock_group_coordinator, sample_group):
     """Test sending message via group notify entity."""
-    entity = SignalGroupNotifyEntity(mock_signal_client, sample_group, "test_entry")
+    entity = SignalGroupNotifyEntity(mock_group_coordinator)
 
     await entity.async_send_message(message="Hello everyone", title="Announcement")
 
-    mock_signal_client.send_message.assert_called_once_with(
-        target="group-id-123",
+    mock_group_coordinator.client.send_message.assert_called_once_with(
+        target=sample_group.id,
         message="Announcement\n\nHello everyone",
         base64_attachments=[],
     )
 
 
-async def test_group_notify_entity_send_message_no_title(
-    mock_signal_client, sample_group
-):
+async def test_group_notify_entity_send_message_no_title(mock_group_coordinator, sample_group):
     """Test sending message without title."""
-    entity = SignalGroupNotifyEntity(mock_signal_client, sample_group, "test_entry")
+    entity = SignalGroupNotifyEntity(mock_group_coordinator)
 
     await entity.async_send_message(message="Hello everyone")
 
-    mock_signal_client.send_message.assert_called_once_with(
-        target="group-id-123",
+    mock_group_coordinator.client.send_message.assert_called_once_with(
+        target=sample_group.id,
         message="Hello everyone",
         base64_attachments=[],
     )
 
 
-async def test_group_notify_entity_send_message_error(mock_signal_client, sample_group):
+async def test_group_notify_entity_send_message_error(mock_group_coordinator, sample_group):
     """Test error handling when sending message."""
-    entity = SignalGroupNotifyEntity(mock_signal_client, sample_group, "test_entry")
-    mock_signal_client.send_message.side_effect = Exception("Send failed")
+    mock_group_coordinator.client.send_message.side_effect = Exception("Send failed")
+    entity = SignalGroupNotifyEntity(mock_group_coordinator)
 
     with pytest.raises(Exception, match="Send failed"):
         await entity.async_send_message(message="Hello")
 
 
-def test_group_notify_entity_device_info(mock_signal_client, sample_group):
-    """Test group notify entity device info."""
-    entity = SignalGroupNotifyEntity(mock_signal_client, sample_group, "test_entry")
+def test_group_notify_entity_device_info(mock_group_coordinator, sample_group):
+    """Test group notify entity device info delegates to coordinator."""
+    entity = SignalGroupNotifyEntity(mock_group_coordinator)
     device_info = entity.device_info
 
-    from custom_components.signal_gateway.const import DOMAIN
-
-    # Groups have two identifiers: API id and internal_id (for websocket matching)
-    assert device_info["identifiers"] == {
-        (DOMAIN, "test_entry_group_group-id-123"),
-        (DOMAIN, "test_entry_group-internal_internal-123"),
-    }
-    assert device_info["name"] == "Test Group"
+    assert (DOMAIN, f"test_entry_id_group_{sample_group.id}") in device_info["identifiers"]
+    assert (DOMAIN, f"test_entry_id_group-internal_{sample_group.internal_id}") in device_info["identifiers"]
+    assert device_info["name"] == sample_group.name
     assert device_info["manufacturer"] == "Signal Messenger"
     assert device_info["model"] == "Group"

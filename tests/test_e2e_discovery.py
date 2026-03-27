@@ -60,11 +60,19 @@ async def test_e2e_full_setup_with_device_approval(
     hass: HomeAssistant, mock_contacts, mock_groups
 ):
     """Test complete flow: setup with device approval creates entities."""
+    contact_lookup = {c.uuid: c for c in mock_contacts}
+    group_lookup = {g.id: g for g in mock_groups}
 
     with patch("custom_components.signal_gateway.SignalClient") as mock_client_class:
         mock_client = MagicMock()
         mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
         mock_client.list_groups = AsyncMock(return_value=mock_groups)
+        mock_client.get_contact = AsyncMock(
+            side_effect=lambda uuid: contact_lookup.get(uuid)
+        )
+        mock_client.get_group = AsyncMock(
+            side_effect=lambda group_id: group_lookup.get(group_id)
+        )
         mock_client.send_message = AsyncMock(return_value={"timestamp": 123456})
         mock_client.start_listening = AsyncMock()
         mock_client.stop_listening = AsyncMock()
@@ -123,11 +131,19 @@ async def test_e2e_setup_without_approved_devices(
     hass: HomeAssistant, mock_contacts, mock_groups
 ):
     """Test setup without approved devices creates no entities (backward compat)."""
+    contact_lookup = {c.uuid: c for c in mock_contacts}
+    group_lookup = {g.id: g for g in mock_groups}
 
     with patch("custom_components.signal_gateway.SignalClient") as mock_client_class:
         mock_client = MagicMock()
         mock_client.list_contacts = AsyncMock(return_value=mock_contacts)
         mock_client.list_groups = AsyncMock(return_value=mock_groups)
+        mock_client.get_contact = AsyncMock(
+            side_effect=lambda uuid: contact_lookup.get(uuid)
+        )
+        mock_client.get_group = AsyncMock(
+            side_effect=lambda group_id: group_lookup.get(group_id)
+        )
         mock_client.send_message = AsyncMock(return_value={"timestamp": 123456})
         mock_client.start_listening = AsyncMock()
         mock_client.stop_listening = AsyncMock()
