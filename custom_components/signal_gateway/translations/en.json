@@ -15,6 +15,16 @@
           "recipients": "Phone numbers to send to by default when no target is specified. Enter one number per line with country code, e.g. +1234567890"
         }
       },
+      "discovery": {
+        "title": "Device Discovery",
+        "description": "Select which contacts and groups to add as devices. Found {device_count} devices.",
+        "data": {
+          "approved_devices": "Select devices to add"
+        },
+        "data_description": {
+          "approved_devices": "Select which contacts and groups you want to add as devices in Home Assistant"
+        }
+      },
       "init": {
         "title": "Signal Gateway Options",
         "description": "Configure Signal Gateway options",
@@ -33,6 +43,7 @@
     "error": {
       "invalid_url": "Invalid API URL",
       "duplicate_service_name": "A Signal Gateway with this name already exists. Please choose a different name.",
+      "cannot_connect": "Failed to connect to Signal API to discover devices",
       "unknown": "Unknown error occurred"
     },
     "abort": {
