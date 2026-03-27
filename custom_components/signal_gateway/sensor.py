@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import event as event_helpers
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_APPROVED_DEVICES, DOMAIN
@@ -103,6 +105,18 @@ class SignalContactInfoEntity(ContactDeviceMixin, SensorEntity):
         )
         self.async_on_remove(unsubscribe)
 
+        # Refresh state every 30 minutes to update avatar tokens before they expire (1h)
+        async def _async_refresh_token(_now):
+            """Refresh entity state to update avatar token."""
+            self.async_write_ha_state()
+
+        unsubscribe_refresh = event_helpers.async_track_time_interval(
+            self.hass,
+            _async_refresh_token,
+            timedelta(minutes=30),
+        )
+        self.async_on_remove(unsubscribe_refresh)
+
     async def _handle_contact_updated(self, event) -> None:
         """Handle contact updated event."""
         data = event.data
@@ -184,6 +198,23 @@ class SignalGroupInfoEntity(GroupDeviceMixin, SensorEntity):
             f"/api/signal_gateway/{self._entry_id}/avatar/group/"
             f"{self._group.id}?token={token}"
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Register periodic refresh when entity is added to hass."""
+        await super().async_added_to_hass()
+
+        # Refresh state every 30 minutes to update avatar tokens before they expire (1h)
+        # Groups always have avatars
+        async def _async_refresh_token(_now):
+            """Refresh entity state to update avatar token."""
+            self.async_write_ha_state()
+
+        unsubscribe_refresh = event_helpers.async_track_time_interval(
+            self.hass,
+            _async_refresh_token,
+            timedelta(minutes=30),
+        )
+        self.async_on_remove(unsubscribe_refresh)
 
     def _update_group(self, group: SignalGroup, write_state: bool = False) -> None:
         """Update the group and native value.
